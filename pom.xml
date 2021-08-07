@@ -15,6 +15,7 @@
         <module>kex-test</module>
         <module>kex-runner</module>
         <module>kex-executor</module>
+        <module>kex-ui</module>
     </modules>
 
     <properties>
