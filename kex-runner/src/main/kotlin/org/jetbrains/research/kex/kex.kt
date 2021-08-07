@@ -1,5 +1,6 @@
 package org.jetbrains.research.kex
 
+import UIListener
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import org.jetbrains.research.kex.asm.analysis.concolic.InstructionConcolicChecker
@@ -200,7 +201,14 @@ class Kex(args: Array<String>) {
         val randomDriver = EasyRandomDriver()
         val originalContext = ExecutionContext(origManager, `package`, containerClassLoader, randomDriver, klassPath)
         val analysisContext = ExecutionContext(classManager, `package`, classLoader, randomDriver, klassPath)
-        val uiEnabled = cmd.getCmdValue("ui")
+        val uiEnabled = cmd.hasOption("ui")
+        var uiListener: UIListener? = null
+        if (uiEnabled) {
+            val host = cmd.getCmdValue("host", "localhost")
+            val port = cmd.getCmdValue("port", "8080").toInt()
+            log.info("UI mode is enabled")
+            uiListener = UIListener(host, port, containers)
+        }
 
         when (cmd.getEnumValue("mode", Mode.Symbolic, ignoreCase = true)) {
             Mode.Fuzzer -> fuzzer(originalContext, analysisContext)

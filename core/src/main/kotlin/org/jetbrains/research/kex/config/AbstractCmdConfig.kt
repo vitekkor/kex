@@ -85,6 +85,7 @@ abstract class AbstractCmdConfig(
 
     fun getCmdValue(name: String): String? = cmd.getOptionValue(name)
     fun getCmdValue(name: String, default: String) = getCmdValue(name) ?: default
+    fun hasOption(name: String): Boolean = cmd.hasOption(name)
     override fun getStringValue(section: String, name: String): String? = commandLineOptions[section]?.get(name)
 
     fun printHelp() {
