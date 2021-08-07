@@ -30,6 +30,24 @@ class RunnerCmdConfig(args: Array<String>) : AbstractCmdConfig("kex-runner", arg
     val mode = Option("m", "mode", true, "run mode: symbolic, concolic or debug")
     mode.isRequired = false
     options += mode
+
+    val ui = Option("ui", "enable graphical interface")
+    ui.isRequired = false
+    options += ui
+
+    val host = Option.builder()
+        .longOpt("host").hasArg(true)
+        .desc("server address (only for enabled ui mode)")
+        .required(false)
+        .build()
+    options += host
+
+    val port = Option.builder()
+        .longOpt("port").hasArg(true)
+        .desc("server port (only for enabled ui mode)")
+        .required(false)
+        .build()
+    options += port
     options
 })
 
