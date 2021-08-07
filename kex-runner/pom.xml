@@ -73,6 +73,11 @@
 <!--        </dependency>-->
         <dependency>
             <groupId>org.jetbrains.research</groupId>
+            <artifactId>kex-ui</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.research</groupId>
             <artifactId>core</artifactId>
             <version>${project.version}</version>
             <classifier>tests</classifier>
