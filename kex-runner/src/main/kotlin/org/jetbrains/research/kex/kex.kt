@@ -199,6 +199,7 @@ class Kex(args: Array<String>) {
         val randomDriver = EasyRandomDriver()
         val originalContext = ExecutionContext(origManager, `package`, containerClassLoader, randomDriver, klassPath)
         val analysisContext = ExecutionContext(classManager, `package`, classLoader, randomDriver, klassPath)
+        val uiEnabled = cmd.getCmdValue("ui")
 
         when (cmd.getEnumValue("mode", Mode.Symbolic, ignoreCase = true)) {
             Mode.Fuzzer -> fuzzer(originalContext, analysisContext)
