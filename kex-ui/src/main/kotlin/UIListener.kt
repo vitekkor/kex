@@ -7,7 +7,6 @@ import info.leadinglight.jdot.impl.EdgeNode
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.http.content.*
-import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
@@ -22,12 +21,10 @@ import org.jetbrains.research.kfg.Package
 import org.jetbrains.research.kfg.container.Container
 import org.jetbrains.research.kfg.container.JarContainer
 import org.jetbrains.research.kfg.util.Flags
-import java.io.File
 import java.nio.file.Path
 
 class UIListener(host: String, port: Int, private val containers: List<Container>) {
-    var visualisation = true
-    var graphs: MutableMap<String, Graph> = run {
+    private val graphs: MutableMap<String, Graph> = run {
         println("Creating CGF for ${containers[0]}")
         createKFGGraph(Path.of("")) // TODO
     }
