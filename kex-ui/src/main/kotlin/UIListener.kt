@@ -2,6 +2,7 @@ import info.leadinglight.jdot.Edge
 import info.leadinglight.jdot.Graph
 import info.leadinglight.jdot.Node
 import info.leadinglight.jdot.SubGraph
+import info.leadinglight.jdot.enums.Color
 import info.leadinglight.jdot.impl.EdgeNode
 import io.ktor.application.*
 import io.ktor.features.*
@@ -11,24 +12,34 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jetbrains.research.kex.trace.symbolic.ExecutionResult
+import org.jetbrains.research.kfg.ClassManager
+import org.jetbrains.research.kfg.KfgConfig
+import org.jetbrains.research.kfg.Package
 import org.jetbrains.research.kfg.container.Container
+import org.jetbrains.research.kfg.container.JarContainer
+import org.jetbrains.research.kfg.util.Flags
 import java.io.File
 import java.nio.file.Path
 
-class UIListener(private val host: String, private val port: Int, private val containers: List<Container>) {
-    var visualisation = false
-    var graphs: MutableMap<String, Graph> = if (containers.isNotEmpty()) {
-        visualisation = true; println("Creating CGF for ${containers[0]}"); createKFGGraph(Path.of("")) // TODO
-    } else mutableMapOf()
-
-    init {
-        startServer()
+class UIListener(host: String, port: Int, private val containers: List<Container>) {
+    var visualisation = true
+    var graphs: MutableMap<String, Graph> = run {
+        println("Creating CGF for ${containers[0]}")
+        createKFGGraph(Path.of("")) // TODO
     }
 
-    private fun startServer() {
+    init {
+        startServer(host, port)
+        /*val (method, instructions) =
+        Json.decodeFromString<Pair<String, ArrayList<String>>>(File("D:\\IdeaProjects\\kex\\temp\\trace-org.jetbrains.research.kex.test.ThatClassContainsHighQualityCodeToProf_incredibleMethod_1955033392.json").readText())
+    highlightPath(graphs.values, instructions, method)*/
+    }
+
+    private fun startServer(host: String, port: Int) {
         embeddedServer(Netty, port = port, host = host) {
             println("Server starts at http://$host:$port/")
             install(CORS) {
@@ -36,17 +47,10 @@ class UIListener(private val host: String, private val port: Int, private val co
             }
             routing {
                 static {
+                    resource("/", "graph.html")
                     resource("/style.css", "style.css")
-                    resource("/index.js", "index.js")
                     resource("/kex_logo.svg", "kex_logo.svg")
                     resource("/visual.js", "visual.js")
-                }
-
-                get("/") {
-                    val content = call.resolveResource(if (!visualisation) "index.html" else "graph.html")
-                    if (content != null) {
-                        call.respond(content)
-                    }
                 }
 
                 get("/{jar}/{method}") {
@@ -108,7 +112,7 @@ class UIListener(private val host: String, private val port: Int, private val co
                     }
                 }
 
-                var fileName = ""
+                /*var fileName = ""
                 post("/jar") {
                     val multipartData = call.receiveMultipart()
 
@@ -135,12 +139,43 @@ class UIListener(private val host: String, private val port: Int, private val co
                     }
                     visualisation = true
                     call.respondText("File accepted!")
-                }
+                }*/
             }
         }.start(wait = true)
     }
 
+    private fun createKFGGraph(path: Path): MutableMap<String, Graph> {
+        val jar = JarContainer(path, Package.defaultPackage)
+        val cm = ClassManager(KfgConfig(Flags.readAll, failOnError = true))
+        cm.initialize(jar)
+        val graphs = mutableMapOf<String, Graph>()
+        for (klass in cm.concreteClasses) {
+            for (method in klass.allMethods) {
+                if (!method.isNative)
+                    graphs[method.prototype.replace("/", ".")] =
+                        method.toGraph(method.name + "::" + method.prototype.replace("/", "."))
+            }
+        }
+        jar.update(cm, jar.path, jar.classLoader)
+        return graphs
+    }
+
+    @Serializable
+    data class Methods(val methods: List<String>)
+
+    //@Serializable
+    //data class Response(val)
+
     fun callBack(executionResult: ExecutionResult) {
 
+    }
+
+    fun highlightPath(graphs: MutableCollection<Graph>, path: List<String>, method: String) {
+        val graph =
+            graphs.find { method.contains(it.name.split("::")[1]) && it.name.split("::")[0] == method.split("_")[1] }!!
+        for (instruction in path) {
+            val node = graph.findNode(instruction.replace(Regex("""\s"""), "")) ?: continue
+            node.setColor(Color.X11.red)
+        }
     }
 }
