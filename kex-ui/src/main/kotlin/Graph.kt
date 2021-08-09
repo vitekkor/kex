@@ -50,7 +50,9 @@ fun Graph.findNode(name: String): Node? {
     while (elements.isNotEmpty()) {
         when (val element = elements.poll()) {
             // TODO: maybe simplify the condition or, on the contrary, complicate
-            is Node -> if (element.attrs.asString.replace(Regex("""\\l|\s"""), "").replace("\\\"", "\"").contains(name)) return element
+            is Node -> if (element.attrs.asString.replace(Regex("""\\l|\s"""), "").replace("\\\"", "\"")
+                    .contains(name)
+            ) return element
             is SubGraph -> elements.addAll(element.elements)
         }
     }
@@ -78,6 +80,25 @@ fun Graph.removeEdge(edge: Edge): Boolean {
         subGraphs.addAll(subElements.filterIsInstance<SubGraph>())
     }
     return false
+}
+
+fun Graph.expand(subGraph: Graph): Graph {
+    val node = findNode(subGraph.name.split("::")[0])!!
+    addSubGraph(subGraph.toSubGraph())
+    val edges = findEdges(node).map { edge ->
+        removeEdge(edge)
+        subGraph.elements
+            .filter { it is Node && it.attrs.asString.contains(Regex("""(.*throw.*)|(.*return.*)""")) }
+            .map { node_ ->
+                Edge((node_ as Node).name, (edge.getElements().last() as EdgeNode).name)
+            }
+    }.flatten()
+    val targetName = subGraph.elements.find {
+        it is Node && subGraph.elements.all { e -> if (e is Edge) (e.getElements()[1] as EdgeNode).name != it.name else true }
+    } as Node
+    addEdge(Edge(node.name, targetName.name))
+    addEdges(*edges.toTypedArray())
+    return this
 }
 
 @Suppress("UNCHECKED_CAST")
