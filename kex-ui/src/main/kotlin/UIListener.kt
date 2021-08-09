@@ -1,16 +1,16 @@
-import info.leadinglight.jdot.Edge
 import info.leadinglight.jdot.Graph
-import info.leadinglight.jdot.Node
 import info.leadinglight.jdot.SubGraph
 import info.leadinglight.jdot.enums.Color
-import info.leadinglight.jdot.impl.EdgeNode
 import io.ktor.application.*
 import io.ktor.features.*
+import io.ktor.http.cio.websocket.*
 import io.ktor.http.content.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.websocket.*
+import kotlinx.coroutines.channels.toList
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -34,12 +34,28 @@ class UIListener(host: String, port: Int, private val containers: List<Container
             install(CORS) {
                 anyHost()
             }
+            install(WebSockets)
             routing {
                 static {
                     resource("/", "graph.html")
                     resource("/style.css", "style.css")
                     resource("/kex_logo.svg", "kex_logo.svg")
                     resource("/visual.js", "visual.js")
+                }
+
+                webSocket("/") { // websocketSession
+                    for (frame in incoming) {
+                        when (frame) {
+                            is Frame.Text -> {
+                                val text = frame.readText()
+                                println("YOU SAID: $text")
+                                outgoing.send(Frame.Text("YOU SAID: $text"))
+                                if (text.equals("bye", ignoreCase = true)) {
+                                    close(CloseReason(CloseReason.Codes.NORMAL, "Client said BYE"))
+                                }
+                            }
+                        }
+                    }
                 }
 
                 get("/{jar}/{method}") {
