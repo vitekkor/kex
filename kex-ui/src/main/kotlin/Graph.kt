@@ -80,11 +80,13 @@ fun Graph.removeEdge(edge: Edge): Boolean {
     return false
 }
 
+@Suppress("UNCHECKED_CAST")
 fun Edge.getElements(): ArrayList<AbstractElement> {
     val f = this::class.java.getDeclaredField("_elements").apply { isAccessible = true }
     return f.get(this) as ArrayList<AbstractElement>
 }
 
+@Suppress("UNCHECKED_CAST")
 fun Node.copy(newName: String? = null): Node {
     val node = Node(newName ?: name)
     val f = this.attrs::class.java.getDeclaredField("_attrs").apply { isAccessible = true }

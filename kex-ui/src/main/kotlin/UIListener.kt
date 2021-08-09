@@ -17,23 +17,15 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.research.kex.trace.symbolic.ExecutionResult
 import org.jetbrains.research.kfg.ClassManager
 import org.jetbrains.research.kfg.KfgConfig
-import org.jetbrains.research.kfg.Package
 import org.jetbrains.research.kfg.container.Container
-import org.jetbrains.research.kfg.container.JarContainer
 import org.jetbrains.research.kfg.util.Flags
-import java.nio.file.Path
+import org.jetbrains.research.kthelper.logging.log
 
 class UIListener(host: String, port: Int, private val containers: List<Container>) {
-    private val graphs: MutableMap<String, Graph> = run {
-        println("Creating CGF for ${containers[0]}")
-        createKFGGraph(Path.of("")) // TODO
-    }
+    private val kfgGraphs = createKFGGraphs(containers)
 
     init {
         startServer(host, port)
-        /*val (method, instructions) =
-        Json.decodeFromString<Pair<String, ArrayList<String>>>(File("D:\\IdeaProjects\\kex\\temp\\trace-org.jetbrains.research.kex.test.ThatClassContainsHighQualityCodeToProf_incredibleMethod_1955033392.json").readText())
-    highlightPath(graphs.values, instructions, method)*/
     }
 
     private fun startServer(host: String, port: Int) {
@@ -56,31 +48,35 @@ class UIListener(host: String, port: Int, private val containers: List<Container
                         call.parameters["method"]!!.endsWith("-all")
                                 && call.parameters["method"]!!.removeSuffix("-all") == call.parameters["jar"] -> {
                             println("Respond - all methods in ${call.parameters["jar"]}")
-                            call.respondText(Json.encodeToString(Methods(graphs.keys.toList())))
+                            call.respondText(Json.encodeToString(Methods(kfgGraphs.keys.toList())))
                         }
-                        call.parameters["method"] == call.parameters["jar"] -> {
+                        /*call.parameters["method"] == call.parameters["jar"] -> {
                             call.respondText(graphs.values.first().toDot())
-                        }
+                        }*/
                         else -> {
-                            graphs[call.parameters["method"]!!]?.let { it1 -> call.respondText(it1.toDot()) }
+                            kfgGraphs[call.parameters["jar"]]?.find { it.name.split("::")[1] == call.parameters["method"] }
+                                ?.let { call.respondText(it.toDot()) }
                         }
                     }
                 }
 
                 get("/{jar}/{method}/{subMethod}") {
+                    val graphs = kfgGraphs[call.parameters["jar"]]!!
                     val sM = call.parameters["subMethod"]!!.replace("%5C", "/")
                     val split = sM.split("static ").last().split(".").drop(1).joinToString()
                     val regex = Regex("""\(.*\)""")
                     val args = (regex.find(split)?.value ?: "").split(",").size
-                    val subGraph = graphs.values.find {
+                    val subGraph = graphs.find {
                         split.split(regex)
                             .any { s -> s == it.name.split("::")[0] } && (regex.find(it.name)?.value
                             ?: "").split(",").size == args
                     }
-                    val graph = graphs.values.find { it.name == call.parameters["method"] }!!
+                    val graph = graphs.find { it.name == call.parameters["method"] }!!
                     println("Expand: method - ${graph.name}; subMethod - ${subGraph?.name}")
                     if (subGraph != null && subGraph != graph) {
-                        if (graph.elements.find { it is SubGraph && it.name == subGraph.name } != null) call.respondText("Has already been expanded") else {
+                        if (graph.elements.find { it is SubGraph && it.name == subGraph.name } != null) call.respondText(
+                            "Has already been expanded"
+                        ) else {
                             val node = graph.findNode(subGraph.name.split("::")[0])!!
                             graph.addSubGraph(subGraph.toSubGraph())
                             val edges =
@@ -141,20 +137,23 @@ class UIListener(host: String, port: Int, private val containers: List<Container
         }.start(wait = true)
     }
 
-    private fun createKFGGraph(path: Path): MutableMap<String, Graph> {
-        val jar = JarContainer(path, Package.defaultPackage)
-        val cm = ClassManager(KfgConfig(Flags.readAll, failOnError = true))
-        cm.initialize(jar)
-        val graphs = mutableMapOf<String, Graph>()
-        for (klass in cm.concreteClasses) {
-            for (method in klass.allMethods) {
-                if (!method.isNative)
-                    graphs[method.prototype.replace("/", ".")] =
-                        method.toGraph(method.name + "::" + method.prototype.replace("/", "."))
+    private fun createKFGGraphs(jars: List<Container>): MutableMap<String, MutableList<Graph>> {
+        log.info("Creating CGF for $containers")
+        val kfgGraphs = mutableMapOf<String, MutableList<Graph>>()
+        for (jar in jars) {
+            val cm = ClassManager(KfgConfig(Flags.readAll, failOnError = true))
+            cm.initialize(jar)
+            val graphs = mutableListOf<Graph>()
+            for (klass in cm.concreteClasses) {
+                for (method in klass.allMethods) {
+                    if (!method.isNative)
+                        graphs.add(method.toGraph(method.name + "::" + method.prototype.replace("/", ".")))
+                }
             }
+            kfgGraphs[jar.name] = graphs
+            jar.update(cm, jar.path, jar.classLoader)
         }
-        jar.update(cm, jar.path, jar.classLoader)
-        return graphs
+        return kfgGraphs
     }
 
     @Serializable
@@ -164,7 +163,7 @@ class UIListener(host: String, port: Int, private val containers: List<Container
     //data class Response(val)
 
     fun callBack(executionResult: ExecutionResult) {
-
+        //highlightPath(graphs.values, instructions, method)
     }
 
     fun highlightPath(graphs: MutableCollection<Graph>, path: List<String>, method: String) {
