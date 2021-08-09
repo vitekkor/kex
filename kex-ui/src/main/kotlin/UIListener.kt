@@ -77,28 +77,7 @@ class UIListener(host: String, port: Int, private val containers: List<Container
                         if (graph.elements.find { it is SubGraph && it.name == subGraph.name } != null) call.respondText(
                             "Has already been expanded"
                         ) else {
-                            val node = graph.findNode(subGraph.name.split("::")[0])!!
-                            graph.addSubGraph(subGraph.toSubGraph())
-                            val edges =
-                                graph.findEdges(node)
-                                    .map { edge ->
-                                        graph.removeEdge(edge)
-                                        subGraph.elements
-                                            .filter { it is Node && it.attrs.asString.contains(Regex("""(.*throw.*)|(.*return.*)""")) }
-                                            .map { node_ ->
-                                                Edge((node_ as Node).name, (edge.getElements().last() as EdgeNode).name)
-                                            }
-                                    }.flatten()
-                            graph.addEdge(
-                                Edge(
-                                    node.name,
-                                    (subGraph.elements.find {
-                                        it is Node && subGraph.elements.all { e ->
-                                            if (e is Edge) (e.getElements()[1] as EdgeNode).name != it.name else true
-                                        }
-                                    } as Node).name))
-                            graph.addEdges(*edges.toTypedArray())
-                            call.respondText(graph.toDot())
+                            call.respondText(graph.expand(subGraph).toDot())
                         }
                     } else {
                         call.respondText("Can't expand $sM instruction")
