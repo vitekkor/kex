@@ -10,22 +10,39 @@ import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.channels.toList
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.jetbrains.research.kex.config.kexConfig
 import org.jetbrains.research.kex.trace.symbolic.ExecutionResult
 import org.jetbrains.research.kfg.ClassManager
 import org.jetbrains.research.kfg.KfgConfig
 import org.jetbrains.research.kfg.container.Container
 import org.jetbrains.research.kfg.util.Flags
 import org.jetbrains.research.kthelper.logging.log
+import java.time.Duration
 
 class UIListener(host: String, port: Int, private val containers: List<Container>) {
     private val kfgGraphs = createKFGGraphs(containers)
 
+    private lateinit var client: DefaultWebSocketSession
+
     init {
-        startServer(host, port)
+        //startServer(host, port)
+    }
+
+    companion object {
+        var uiListener: UIListener? = null
+
+        fun ui(containers: List<Container>): UIListener? {
+            uiListener = if (kexConfig.uiEnabled) {
+                log.info("UI mode is enabled")
+                val host = kexConfig.getStringValue("ui", "host", "localhost")
+                val port = kexConfig.getIntValue("ui", "port", 8080)
+                UIListener(host, port, containers)
+            } else null
+            return uiListener
+        }
     }
 
     private fun startServer(host: String, port: Int) {
@@ -34,7 +51,9 @@ class UIListener(host: String, port: Int, private val containers: List<Container
             install(CORS) {
                 anyHost()
             }
-            install(WebSockets)
+            install(WebSockets) {
+                timeout = Duration.ofMillis(Long.MAX_VALUE)
+            }
             routing {
                 static {
                     resource("/", "graph.html")
@@ -44,6 +63,7 @@ class UIListener(host: String, port: Int, private val containers: List<Container
                 }
 
                 webSocket("/") { // websocketSession
+                    client = this
                     for (frame in incoming) {
                         when (frame) {
                             is Frame.Text -> {
@@ -133,7 +153,7 @@ class UIListener(host: String, port: Int, private val containers: List<Container
     }
 
     private fun createKFGGraphs(jars: List<Container>): MutableMap<String, MutableList<Graph>> {
-        log.info("Creating CGF for $containers")
+        log.info("Creating CGF for ${containers.map { it.path }}")
         val kfgGraphs = mutableMapOf<String, MutableList<Graph>>()
         for (jar in jars) {
             val cm = ClassManager(KfgConfig(Flags.readAll, failOnError = true))
@@ -146,7 +166,7 @@ class UIListener(host: String, port: Int, private val containers: List<Container
                 }
             }
             kfgGraphs[jar.name] = graphs
-            jar.update(cm, jar.path, jar.classLoader)
+            //jar.update(cm, jar.path, jar.classLoader)
         }
         return kfgGraphs
     }

@@ -4,6 +4,7 @@ val kexConfig: GlobalConfig by lazy { GlobalConfig() }
 
 class GlobalConfig : Config() {
     private val sources = mutableListOf<Config>()
+    var uiEnabled = false
 
     override fun getStringValue(section: String, name: String): String? {
         var ret: String? = null
