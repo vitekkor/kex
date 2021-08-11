@@ -84,11 +84,15 @@ class UIListener(host: String, port: Int, private val containers: List<Container
                         call.parameters["method"]!!.endsWith("-all")
                                 && call.parameters["method"]!!.removeSuffix("-all") == call.parameters["jar"] -> {
                             println("Respond - all methods in ${call.parameters["jar"]}")
-                            call.respondText(Json.encodeToString(Methods(kfgGraphs.keys.toList())))
+                            val methods = Methods(kfgGraphs[call.parameters["jar"]]!!.map {
+                                it.name.split("::").drop(1).joinToString("")
+                            })
+                            call.respondText(Json.encodeToString(methods))
                         }
-                        /*call.parameters["method"] == call.parameters["jar"] -> {
-                            call.respondText(graphs.values.first().toDot())
-                        }*/
+                        call.parameters["method"] == call.parameters["jar"] -> {
+                            val response = Response(0, kfgGraphs[call.parameters["jar"]]!!.first().toDot())
+                            call.respondText(Json.encodeToString(response))
+                        }
                         else -> {
                             kfgGraphs[call.parameters["jar"]]?.find { it.name.split("::")[1] == call.parameters["method"] }
                                 ?.let { call.respondText(it.toDot()) }
@@ -119,35 +123,6 @@ class UIListener(host: String, port: Int, private val containers: List<Container
                         call.respondText("Can't expand $sM instruction")
                     }
                 }
-
-                /*var fileName = ""
-                post("/jar") {
-                    val multipartData = call.receiveMultipart()
-
-                    multipartData.forEachPart { part ->
-                        when (part) {
-                            is PartData.FileItem -> {
-                                fileName = part.originalFileName as String
-                                val fileBytes = part.streamProvider().readBytes()
-                                try {
-                                    val file = File(".\\jars\\$fileName")
-                                    file.createNewFile()
-                                    file.writeBytes(fileBytes)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                                println("File: $fileName")
-                            }
-                        }
-                    }
-                    try {
-                        graphs = createKFGGraph(Path.of(".\\jars\\$fileName"))
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                    visualisation = true
-                    call.respondText("File accepted!")
-                }*/
             }
         }.start(wait = true)
     }
@@ -174,8 +149,8 @@ class UIListener(host: String, port: Int, private val containers: List<Container
     @Serializable
     data class Methods(val methods: List<String>)
 
-    //@Serializable
-    //data class Response(val)
+    @Serializable
+    data class Response(val code: Int, val message: String)
 
     fun callBack(executionResult: ExecutionResult) {
         //highlightPath(graphs.values, instructions, method)
