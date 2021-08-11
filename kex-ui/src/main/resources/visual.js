@@ -24,6 +24,22 @@ let json;
 
 let socket = new WebSocket(`ws://${host}/`);
 
+socket.onopen = function(e) {
+    socket.send("");
+};
+
+socket.onmessage = function(event) {
+};
+
+socket.onclose = function(event) {
+    if (event.wasClean) {
+    } else {
+    }
+};
+
+socket.onerror = function(error) {
+};
+
 /*const req = new XMLHttpRequest();
 req.open("GET", `${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file"), true);
 req.onreadystatechange = function () {
