@@ -1,5 +1,6 @@
 package org.jetbrains.research.kex.asm.analysis.concolic
 
+import UIListener.Companion.uiListener
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import org.jetbrains.research.kex.ExecutionContext
@@ -274,9 +275,11 @@ class InstructionConcolicChecker(
         while (stateDeque.isNotEmpty() && !traceManager.isFullCovered(method)) {
             val state = stateDeque.pollFirst()
             log.debug("Processing state: $state")
+            uiListener?.callBack(state)
 
             val mutatedState = mutateState(state) ?: continue
             log.debug("Mutated state: $mutatedState")
+            uiListener?.callBack(SuccessResult(mutatedState))
 
             val newState = check(method, mutatedState) ?: continue
             if (newState.trace.isEmpty()) {

@@ -201,7 +201,7 @@ class Kex(args: Array<String>) {
         val originalContext = ExecutionContext(origManager, `package`, containerClassLoader, randomDriver, klassPath)
         val analysisContext = ExecutionContext(classManager, `package`, classLoader, randomDriver, klassPath)
         kexConfig.uiEnabled = cmd.hasOption("ui")
-        ui(containers)
+        ui(containers, analysisContext)
 
         when (cmd.getEnumValue("mode", Mode.Symbolic, ignoreCase = true)) {
             Mode.Fuzzer -> fuzzer(originalContext, analysisContext)
