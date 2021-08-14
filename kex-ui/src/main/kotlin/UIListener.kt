@@ -10,9 +10,11 @@ import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.jetbrains.research.kex.ExecutionContext
 import org.jetbrains.research.kex.config.kexConfig
 import org.jetbrains.research.kex.trace.symbolic.ExecutionResult
 import org.jetbrains.research.kfg.ClassManager
@@ -22,8 +24,13 @@ import org.jetbrains.research.kfg.util.Flags
 import org.jetbrains.research.kthelper.logging.log
 import java.time.Duration
 
-class UIListener(host: String, port: Int, private val containers: List<Container>) {
-    private val kfgGraphs = createKFGGraphs(containers)
+class UIListener(
+    host: String,
+    port: Int,
+    private val containers: List<Container>,
+    private val context: ExecutionContext
+) {
+    private val kfgGraphs = createKFGGraphs(containers, context)
 
     private lateinit var client: DefaultWebSocketSession
 
@@ -34,12 +41,12 @@ class UIListener(host: String, port: Int, private val containers: List<Container
     companion object {
         var uiListener: UIListener? = null
 
-        fun ui(containers: List<Container>): UIListener? {
+        fun ui(containers: List<Container>, context: ExecutionContext): UIListener? {
             uiListener = if (kexConfig.uiEnabled) {
                 log.info("UI mode is enabled")
                 val host = kexConfig.getStringValue("ui", "host", "localhost")
                 val port = kexConfig.getIntValue("ui", "port", 8080)
-                UIListener(host, port, containers)
+                UIListener(host, port, containers, context)
             } else null
             return uiListener
         }
@@ -90,12 +97,12 @@ class UIListener(host: String, port: Int, private val containers: List<Container
                             call.respondText(Json.encodeToString(methods))
                         }
                         call.parameters["method"] == call.parameters["jar"] -> {
-                            val response = Response(0, kfgGraphs[call.parameters["jar"]]!!.first().toDot())
+                            val response = Response(0, kfgGraphs[call.parameters["jar"]]!!.first().toJson())
                             call.respondText(Json.encodeToString(response))
                         }
                         else -> {
                             kfgGraphs[call.parameters["jar"]]?.find { it.name.split("::")[1] == call.parameters["method"] }
-                                ?.let { call.respondText(it.toDot()) }
+                                ?.let { call.respondText(it.toJson()) }
                         }
                     }
                 }
@@ -114,11 +121,13 @@ class UIListener(host: String, port: Int, private val containers: List<Container
                     val graph = graphs.find { it.name == call.parameters["method"] }!!
                     println("Expand: method - ${graph.name}; subMethod - ${subGraph?.name}")
                     if (subGraph != null && subGraph != graph) {
-                        if (graph.elements.find { it is SubGraph && it.name == subGraph.name } != null) call.respondText(
+                        /*if (graph.elements.find { it is SubGraph && it.name == subGraph.name } != null) call.respondText(
                             "Has already been expanded"
-                        ) else {
-                            call.respondText(graph.expand(subGraph).toDot())
-                        }
+                        ) else {*/
+                        // TODO refactor
+                        val update = Update(graph.getNodeId(subGraph.name.split("::")[0]), subGraph.toJson())
+                        val response = Response(1, Json.encodeToString(update))
+                        call.respondText(Json.encodeToString(response))
                     } else {
                         call.respondText("Can't expand $sM instruction")
                     }
@@ -127,13 +136,16 @@ class UIListener(host: String, port: Int, private val containers: List<Container
         }.start(wait = true)
     }
 
-    private fun createKFGGraphs(jars: List<Container>): MutableMap<String, MutableList<Graph>> {
+    private fun createKFGGraphs(
+        jars: List<Container>,
+        context: ExecutionContext
+    ): MutableMap<String, MutableList<KFGGraph>> {
         log.info("Creating CGF for ${containers.map { it.path }}")
-        val kfgGraphs = mutableMapOf<String, MutableList<Graph>>()
+        val kfgGraphs = mutableMapOf<String, MutableList<KFGGraph>>()
         for (jar in jars) {
-            val cm = ClassManager(KfgConfig(Flags.readAll, failOnError = true))
+            val cm = context.cm
             cm.initialize(jar)
-            val graphs = mutableListOf<Graph>()
+            val graphs = mutableListOf<KFGGraph>()
             for (klass in cm.concreteClasses) {
                 for (method in klass.allMethods) {
                     if (!method.isNative)
@@ -152,7 +164,10 @@ class UIListener(host: String, port: Int, private val containers: List<Container
     @Serializable
     data class Response(val code: Int, val message: String)
 
-    fun callBack(executionResult: ExecutionResult) {
+    @Serializable
+    data class Update(val nodeId: Int, val subGraph: String)
+
+    fun callBack(executionResult: ExecutionResult) = runBlocking {
         //highlightPath(graphs.values, instructions, method)
     }
 

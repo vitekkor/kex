@@ -1,5 +1,6 @@
 package org.jetbrains.research.kex.asm.analysis.concolic
 
+import UIListener.Companion.uiListener
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout

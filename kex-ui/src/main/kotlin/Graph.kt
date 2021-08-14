@@ -3,25 +3,22 @@ import info.leadinglight.jdot.Graph
 import info.leadinglight.jdot.Node
 import info.leadinglight.jdot.SubGraph
 import info.leadinglight.jdot.enums.Color
-import info.leadinglight.jdot.enums.Shape
 import info.leadinglight.jdot.impl.AbstractElement
 import info.leadinglight.jdot.impl.Attrs
 import info.leadinglight.jdot.impl.EdgeNode
 import org.jetbrains.research.kthelper.algorithm.Viewable
 import java.util.ArrayDeque
 
-fun Viewable.toGraph(name: String): Graph {
-    val graph = Graph(name)
+fun Viewable.toGraph(name: String): KFGGraph {
+    val graph = KFGGraph(name)
 
-    graph.addNodes(*graphView.map {
-        Node(it.name).setShape(Shape.box).setLabel(it.label).setFontSize(12.0)
-    }.toTypedArray())
-
-    graph.setBgColor(Color.X11.transparent)
+    graphView.forEach {
+        graph.addNode(it.label)
+    }
 
     for (node in graphView) {
         for (successor in node.successors) {
-            graph.addEdge(Edge(node.name, successor.name))
+            graph.addLink(node.label, successor.label)
         }
     }
     return graph
