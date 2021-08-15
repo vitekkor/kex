@@ -1,6 +1,3 @@
-import info.leadinglight.jdot.Graph
-import info.leadinglight.jdot.SubGraph
-import info.leadinglight.jdot.enums.Color
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.http.cio.websocket.*
@@ -12,15 +9,13 @@ import io.ktor.server.netty.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jetbrains.research.kex.ExecutionContext
 import org.jetbrains.research.kex.config.kexConfig
 import org.jetbrains.research.kex.trace.symbolic.ExecutionResult
-import org.jetbrains.research.kfg.ClassManager
-import org.jetbrains.research.kfg.KfgConfig
 import org.jetbrains.research.kfg.container.Container
-import org.jetbrains.research.kfg.util.Flags
 import org.jetbrains.research.kthelper.logging.log
 import java.time.Duration
 
@@ -35,7 +30,7 @@ class UIListener(
     private lateinit var client: DefaultWebSocketSession
 
     init {
-        //startServer(host, port)
+        startServer(host, port)
     }
 
     companion object {
@@ -75,8 +70,11 @@ class UIListener(
                         when (frame) {
                             is Frame.Text -> {
                                 val text = frame.readText()
-                                println("YOU SAID: $text")
-                                outgoing.send(Frame.Text("YOU SAID: $text"))
+                                val r = Json.decodeFromString<Response>(text)
+                                if (r.code == 2)
+                                    outgoing.send(Frame.Text(Json.encodeToString(Response(2, containers.first().name))))
+                                else
+                                    outgoing.send(Frame.Text("YOU SAID: $text"))
                                 if (text.equals("bye", ignoreCase = true)) {
                                     close(CloseReason(CloseReason.Codes.NORMAL, "Client said BYE"))
                                 }
@@ -140,6 +138,7 @@ class UIListener(
         jars: List<Container>,
         context: ExecutionContext
     ): MutableMap<String, MutableList<KFGGraph>> {
+        println("Creating CGF for ${containers.map { it.path }}")
         log.info("Creating CGF for ${containers.map { it.path }}")
         val kfgGraphs = mutableMapOf<String, MutableList<KFGGraph>>()
         for (jar in jars) {
@@ -148,7 +147,7 @@ class UIListener(
             val graphs = mutableListOf<KFGGraph>()
             for (klass in cm.concreteClasses) {
                 for (method in klass.allMethods) {
-                    if (!method.isNative)
+                    if (!method.isNative && method.isNotEmpty())
                         graphs.add(method.toGraph(method.name + "::" + method.prototype.replace("/", ".")))
                 }
             }
@@ -168,15 +167,8 @@ class UIListener(
     data class Update(val nodeId: Int, val subGraph: String)
 
     fun callBack(executionResult: ExecutionResult) = runBlocking {
-        //highlightPath(graphs.values, instructions, method)
-    }
-
-    fun highlightPath(graphs: MutableCollection<Graph>, path: List<String>, method: String) {
-        val graph =
-            graphs.find { method.contains(it.name.split("::")[1]) && it.name.split("::")[0] == method.split("_")[1] }!!
-        for (instruction in path) {
-            val node = graph.findNode(instruction.replace(Regex("""\s"""), "")) ?: continue
-            node.setColor(Color.X11.red)
+        executionResult.trace.trace.trace.forEach {
+            println("Instruction - ${it.print()}")
         }
     }
 }

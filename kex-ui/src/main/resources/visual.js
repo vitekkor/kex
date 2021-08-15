@@ -24,11 +24,19 @@ let json;
 
 let socket = new WebSocket(`ws://${host}/`);
 
+
+function newResponse(code, message) {
+    return JSON.stringify({code: code, message: message})
+}
+
 socket.onopen = function(e) {
-    socket.send("");
+    socket.send(newResponse(2, "Get jar name"));
 };
 
 socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    if (data.code === 2)
+        localStorage.setItem("file", data.message);
 };
 
 socket.onclose = function(event) {
@@ -39,6 +47,12 @@ socket.onclose = function(event) {
 
 socket.onerror = function(error) {
 };
+
+function jsonToDot(json) {
+    const links = json.links;
+    const nodes = json.nodes;
+
+}
 
 /*const req = new XMLHttpRequest();
 req.open("GET", `${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file"), true);
