@@ -188,8 +188,15 @@ const defaultData = graph.save()
 function graphIt(json) {
     document.querySelector('.spinner').style.display = "none";
     const data = {'nodes': json.nodes, 'edges': json.links}
+    localStorage.setItem("method", json.name)
 
     graph.changeData(data);
+    let node = graph.find('node', (n) => {
+        let node = n.getModel()
+        return n.getInEdges().length === 0 && node.name.replaceAll("/", ".") === localStorage.getItem("method").split("::").slice(1).join("::")
+    })
+    graph.focusItem(node);
+    graph.translate(0, -height / 2 + node.getBBox().y)
 
     /*if (typeof window !== 'undefined')
         window.onresize = () => {
