@@ -18,6 +18,7 @@ import org.jetbrains.research.kex.trace.symbolic.ExecutionResult
 import org.jetbrains.research.kfg.container.Container
 import org.jetbrains.research.kthelper.logging.log
 import java.time.Duration
+import kotlin.io.path.name
 
 class UIListener(
     host: String,
@@ -72,7 +73,16 @@ class UIListener(
                                 val text = frame.readText()
                                 val r = Json.decodeFromString<Response>(text)
                                 if (r.code == 2)
-                                    outgoing.send(Frame.Text(Json.encodeToString(Response(2, containers.first().name))))
+                                    outgoing.send(
+                                        Frame.Text(
+                                            Json.encodeToString(
+                                                Response(
+                                                    2,
+                                                    containers.first().path.name
+                                                )
+                                            )
+                                        )
+                                    )
                                 else
                                     outgoing.send(Frame.Text("YOU SAID: $text"))
                                 if (text.equals("bye", ignoreCase = true)) {
@@ -96,11 +106,13 @@ class UIListener(
                         }
                         call.parameters["method"] == call.parameters["jar"] -> {
                             val response = Response(0, kfgGraphs[call.parameters["jar"]]!!.first().toJson())
-                            call.respondText(Json.encodeToString(response))
+                            call.respondText(response.toJson())
                         }
                         else -> {
-                            kfgGraphs[call.parameters["jar"]]?.find { it.name.split("::")[1] == call.parameters["method"] }
-                                ?.let { call.respondText(it.toJson()) }
+                            kfgGraphs[call.parameters["jar"]]?.find {
+                                it.name.split("::").drop(1).joinToString("") == call.parameters["method"]
+                            }
+                                ?.let { call.respondText(Response(0, it.toJson()).toJson()) }
                         }
                     }
                 }
@@ -151,7 +163,7 @@ class UIListener(
                         graphs.add(method.toGraph(method.name + "::" + method.prototype.replace("/", ".")))
                 }
             }
-            kfgGraphs[jar.name] = graphs
+            kfgGraphs[jar.path.name] = graphs
             //jar.update(cm, jar.path, jar.classLoader)
         }
         return kfgGraphs
@@ -161,10 +173,14 @@ class UIListener(
     data class Methods(val methods: List<String>)
 
     @Serializable
-    data class Response(val code: Int, val message: String)
+    data class Response(val code: Int, val message: String) {
+        fun toJson(): String {
+            return Json.encodeToString(this)
+        }
+    }
 
     @Serializable
-    data class Update(val nodeId: Int, val subGraph: String)
+    data class Update(val nodeId: String, val subGraph: String)
 
     fun callBack(executionResult: ExecutionResult) = runBlocking {
         executionResult.trace.trace.trace.forEach {

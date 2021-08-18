@@ -1,4 +1,4 @@
-const host = document.location.host//document.location.origin;
+const host = document.location.host
 
 $(function () {
     $("#dialog").dialog({
@@ -29,43 +29,37 @@ function newResponse(code, message) {
     return JSON.stringify({code: code, message: message})
 }
 
-socket.onopen = function(e) {
+socket.onopen = function (e) {
     socket.send(newResponse(2, "Get jar name"));
 };
 
-socket.onmessage = function(event) {
+socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
     if (data.code === 2)
         localStorage.setItem("file", data.message);
 };
 
-socket.onclose = function(event) {
+socket.onclose = function (event) {
     if (event.wasClean) {
     } else {
     }
 };
 
-socket.onerror = function(error) {
+socket.onerror = function (error) {
 };
 
-function jsonToDot(json) {
-    const links = json.links;
-    const nodes = json.nodes;
-
-}
-
-/*const req = new XMLHttpRequest();
-req.open("GET", `${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file"), true);
+const req = new XMLHttpRequest();
+req.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file"), true);
 req.onreadystatechange = function () {
     if (req.readyState === XMLHttpRequest.DONE && req.status === 200) {
-        const response = removeGraphName(req.response);
-        start(response);
+        var response = JSON.parse(req.response, parseJson)
+        graphIt(response.message)
     }
 }
 req.send(null);
 
 const methods = new XMLHttpRequest();
-methods.open("GET", `${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file") + "-all", true);
+methods.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file") + "-all", true);
 methods.onreadystatechange = function () {
     if (methods.readyState === XMLHttpRequest.DONE && methods.status === 200) {
         let sidebar = document.querySelector('.sidebar');
@@ -81,9 +75,182 @@ methods.onreadystatechange = function () {
 }
 methods.send(null);
 
+let width = window.innerWidth,
+    height = window.innerHeight - $('.logo').height() - 70;
+
+G6.registerNode(
+    'node',
+    {
+        drawShape(cfg, group) {
+            const rect = group.addShape('rect', {
+                attrs: {
+                    x: 0,
+                    y: 0,
+                    width: 10,
+                    height: 10,
+                    radius: 10,
+                    stroke: '#5B8FF9',
+                    fill: '#C6E5FF',
+                    lineWidth: 3,
+                },
+                name: 'rect-shape',
+            });
+            if (cfg.name) {
+                const label = group.addShape('text', {
+                    attrs: {
+                        text: cfg.name,
+                        x: 0,
+                        y: 0,
+                        fill: '#00287E',
+                        fontSize: 14,
+                        textAlign: 'center',
+                        textBaseline: 'middle',
+                        fontWeight: 'bold',
+                    },
+                    name: 'text-shape',
+                });
+                const labelBBox = label.getBBox({'stroke': true});
+                labelBBox.width += 6
+                labelBBox.height += 6
+                rect.attrs.x = -labelBBox.width / 2
+                rect.attrs.y = -labelBBox.height / 2
+                rect.attrs.height = labelBBox.height
+                rect.attrs.width = labelBBox.width
+            }
+            return rect;
+        },
+    },
+    'single-node',
+);
+
+const graph = new G6.Graph({
+    container: 'container',
+    width,
+    height,
+    fitCenter: true,
+    layout: {
+        type: 'dagre',
+        ranksep: 25,
+        controlPoints: true,
+        nodesepFunc: (node) => {
+            return G6.Util.getTextSize(node.name.split("\n").sort(
+                function (a, b) {
+                    return b.length - a.length;
+                }
+            )[0], 14)[0] / 2.5 //fontSize
+        }
+    },
+    defaultNode: {
+        type: 'node',
+    },
+    defaultEdge: {
+        type: 'polyline',
+        style: {
+            radius: 20,
+            offset: 45,
+            endArrow: true,
+            lineWidth: 2,
+            stroke: '#C2C8D5',
+        },
+    },
+    nodeStateStyles: {
+        selected: {
+            stroke: '#d9d9d9',
+            fill: '#5394ef',
+        },
+    },
+    modes: {
+        default: [
+            'drag-canvas',
+            'zoom-canvas',
+            'click-select',
+            /*{
+                type: 'tooltip',
+                formatText(model) {
+                    const cfg = model.conf;
+                    const text = [];
+                    if (cfg) {
+                        cfg.forEach((row) => {
+                            text.push(row.label + ':' + row.value + '<br>');
+                        });
+                    }
+                    return text.join('\n');
+                },
+                offset: 30,
+            },*/
+        ],
+    },
+    fitView: true,
+});
+
+const defaultData = graph.save()
+
+function graphIt(json) {
+    document.querySelector('.spinner').style.display = "none";
+    const data = {'nodes': json.nodes, 'edges': json.links}
+
+    graph.changeData(data);
+
+    /*if (typeof window !== 'undefined')
+        window.onresize = () => {
+            if (!graph || graph.get('destroyed')) return;
+            if (!container || !container.scrollWidth || !container.scrollHeight) return;
+            graph.changeSize(container.scrollWidth, container.scrollHeight);
+        };*/
+}
+
 let graphviz;
 
-function start(j) {
+function anotherMethod(method, jar) {
+    graph.changeData(defaultData);
+    document.querySelector('.spinner').style.display = "block";
+
+    req.open("GET", `http://${host}/` + jar + "/" + method, true);
+    closeNav();
+    req.send(null);
+}
+
+function expand(jar, method, subMethod) {
+    const expandReq = new XMLHttpRequest();
+    expandReq.onreadystatechange = function () {
+        if (expandReq.readyState === XMLHttpRequest.DONE && expandReq.status === 200) {
+            document.querySelector("body").style.pointerEvents = "all"
+            /*if (expandReq.response.includes("Can't expand")) {
+                afterWaitingWithDialog(expandReq.response)
+            } else if (expandReq.response.includes("Has already been expanded")) {
+                afterWaitingWithDialog(expandReq.response)
+            } else {*/
+            const response = JSON.parse(req.response, parseJson);
+            document.querySelector('.spinner').style.display = "none";
+            document.querySelector('.graph-pane').style.display = "block";
+
+            //}
+        }
+    }
+    expandReq.open("GET", `http://${host}/` + jar + "/" + method + "/" + subMethod, true);
+    document.querySelector("body").style.pointerEvents = "none";
+    document.querySelector('.spinner').style.display = "block";
+    document.querySelector('.graph-pane').style.display = "none";
+    expandReq.send(null)
+}
+
+
+function afterWaitingWithDialog(text) {
+    document.querySelector('.spinner').style.display = "none";
+    document.querySelector('.graph-pane').style.display = "block";
+    document.getElementById("dialog").style.display = "block";
+    document.getElementById("dialog").innerText = text;
+    $("#dialog").dialog("open");
+}
+
+function parseJson(k, value) {
+    if (k === '') {
+        return value;
+    }
+    return JSON.parse(value);
+}
+
+/*function start(j) {
     json = j;
     document.querySelector('.spinner').style.display = "none";
 
@@ -152,46 +319,7 @@ function start(j) {
     });
 }
 
-function expand(jar, method, subMethod) {
-    const expandReq = new XMLHttpRequest();
-    expandReq.onreadystatechange = function () {
-        if (expandReq.readyState === XMLHttpRequest.DONE && expandReq.status === 200) {
-            document.querySelector("body").style.pointerEvents = "all"
-            if (expandReq.response.includes("Can't expand")) {
-                afterWaitingWithDialog(expandReq.response)
-            } else if (expandReq.response.includes("Has already been expanded")) {
-                afterWaitingWithDialog(expandReq.response)
-            } else {
-                const response = removeGraphName(expandReq.response);
-                document.querySelector('.spinner').style.display = "none";
-                document.querySelector('.graph-pane').style.display = "block";
-                graphviz.renderDot(response);
-            }
-        }
-    }
-    expandReq.open("GET", `${host}/` + jar + "/" + method + "/" + subMethod, true);
-    document.querySelector("body").style.pointerEvents = "none";
-    document.querySelector('.spinner').style.display = "block";
-    document.querySelector('.graph-pane').style.display = "none";
-    expandReq.send(null)
-}
 
-function anotherMethod(method, jar) {
-    let elem = document.querySelector('.graph-pane').querySelector("svg");
-    elem.parentNode.removeChild(elem);
-    document.querySelector('.spinner').style.display = "block";
-
-    req.open("GET", `${host}/` + jar + "/" + method, true);
-    req.send(null);
-}
-
-function afterWaitingWithDialog(text) {
-    document.querySelector('.spinner').style.display = "none";
-    document.querySelector('.graph-pane').style.display = "block";
-    document.getElementById("dialog").style.display = "block";
-    document.getElementById("dialog").innerText = text;
-    $("#dialog").dialog("open");
-}
 
 function removeGraphName(graph) {
     let resp = graph.split(" ");
