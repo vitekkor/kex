@@ -50,6 +50,7 @@ class StaticFieldInliner(
             ignores: Set<Term> = setOf()
         ) = transform(ps) {
             +AnnotationAdapter(method, AnnotationManager.defaultLoader)
+//            +StringAdapter(ctx)
             +RecursiveConstructorInliner(psa)
             +IntrinsicAdapter
             +KexIntrinsicsAdapter()
@@ -57,10 +58,10 @@ class StaticFieldInliner(
             +Optimizer()
             +ConstantPropagator
             +BoolTypeAdapter(ctx.types)
-            +ConstStringAdapter()
             +ArrayBoundsAdapter()
             +NullityInfoAdapter()
-            +FieldNormalizer(ctx.cm, "state.normalized")
+            +ConstStringAdapter()
+            +FieldNormalizer(ctx.cm, ".state.normalized")
         }
 
         private fun generateFinalFieldValues(
@@ -76,7 +77,7 @@ class StaticFieldInliner(
                     if (field.defaultValue != null) {
                         val value = field.defaultValue!!
                         state {
-                            val fieldTerm = `class`(klass).field(field.type.kexType, field.name)
+                            val fieldTerm = staticRef(klass).field(field.type.kexType, field.name)
                             fieldTerm.store(value(value))
                         }
                     }
@@ -88,7 +89,7 @@ class StaticFieldInliner(
 
             val query = with(StateBuilder()) {
                 for (field in klass.fields.filter { it.isFinal && it.isStatic }) {
-                    val valuesField = term { `class`(klass).field(field.type.kexType, field.name) }
+                    val valuesField = term { staticRef(klass).field(field.type.kexType, field.name) }
                     val generatedTerm = term { generate(field.type.kexType) }
                     require { generatedTerm equality valuesField.load() }
                 }
@@ -106,9 +107,10 @@ class StaticFieldInliner(
 
             return params.statics.map { descriptor ->
                 descriptor as ClassDescriptor
+                val kfgKlass = descriptor.klass.kfgClass(ctx.types)
                 descriptor.fields.mapKeys {
                     val (name, type) = it.key
-                    klass.getField(name, type.getKfgType(ctx.types))
+                    kfgKlass.getField(name, type.getKfgType(ctx.types))
                 }.filterKeys { it.isStatic && it.isFinal }.toList()
             }.flatten().toMap()
         }
@@ -124,7 +126,7 @@ class StaticFieldInliner(
             .filterIsInstance<FieldLoadTerm>()
             .mapNotNull {
                 val field = it.field as FieldTerm
-                val kfgField = cm[field.klass].getField(field.fieldNameString, field.type.getKfgType(cm.type))
+                val kfgField = cm[field.klass].getField(field.fieldName, field.type.getKfgType(cm.type))
                 if (kfgField.isStatic && kfgField.isFinal) {
                     kfgField
                 } else {

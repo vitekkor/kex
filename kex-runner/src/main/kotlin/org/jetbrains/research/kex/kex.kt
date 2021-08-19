@@ -60,6 +60,8 @@ import java.nio.file.Paths
 import java.util.*
 import kotlin.system.exitProcess
 
+@ExperimentalSerializationApi
+@InternalSerializationApi
 class Kex(args: Array<String>) {
     private val cmd = RunnerCmdConfig(args)
     private val properties = cmd.getCmdValue("config", "kex.ini")
@@ -99,11 +101,12 @@ class Kex(args: Array<String>) {
 
     init {
         kexConfig.initialize(cmd, RuntimeConfig, FileConfig(properties))
-        outputDir = kexConfig.getPathValue("kex", "outputDir")
-            ?: Files.createTempDirectory(Paths.get("."), "kex-output")
-                .toAbsolutePath().also {
-                    RuntimeConfig.setValue("kex", "outputDir", it)
-                }
+        outputDir = (cmd.getCmdValue("output")?.let { Paths.get(it) }
+            ?: kexConfig.getPathValue("kex", "outputDir")
+            ?: Files.createTempDirectory(Paths.get("."), "kex-output"))
+            .toAbsolutePath().also {
+                RuntimeConfig.setValue("kex", "outputDir", it)
+            }
 
         val logName = kexConfig.getStringValue("kex", "log", "kex.log")
         kexConfig.initLog(logName)
@@ -124,12 +127,12 @@ class Kex(args: Array<String>) {
                 `package` = Package.parse(targetName)
                 AnalysisLevel.PACKAGE
             }
-            targetName.matches(Regex("[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*\\.[a-zA-Z0-9\$_]+::[a-zA-Z0-9\$_]+")) -> {
+            targetName.matches(Regex("([a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*\\.)?[a-zA-Z0-9\$_]+::[a-zA-Z0-9\$_]+")) -> {
                 val (klassName, methodName) = targetName.split("::")
                 `package` = Package.parse("${klassName.dropLastWhile { it != '.' }}*")
                 AnalysisLevel.METHOD(klassName.replace('.', '/'), methodName)
             }
-            targetName.matches(Regex("[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*\\.[a-zA-Z0-9\$_]+")) -> {
+            targetName.matches(Regex("[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*")) -> {
                 `package` = Package.parse("${targetName.dropLastWhile { it != '.' }}*")
                 AnalysisLevel.CLASS(targetName.replace('.', '/'))
             }
@@ -184,8 +187,6 @@ class Kex(args: Array<String>) {
         System.setProperty("java.class.path", classPath)
     }
 
-    @ExperimentalSerializationApi
-    @InternalSerializationApi
     fun main() {
         // write all classes to output directory, so they will be seen by ClassLoader
         val instrumentedDirName = kexConfig.getStringValue("output", "instrumentedDir", "instrumented")
@@ -212,8 +213,6 @@ class Kex(args: Array<String>) {
         clearClassPath()
     }
 
-    @ExperimentalSerializationApi
-    @InternalSerializationApi
     fun debug(analysisContext: ExecutionContext) {
         val psa = PredicateStateAnalysis(analysisContext.cm)
 
@@ -343,8 +342,6 @@ class Kex(args: Array<String>) {
         clearClassPath()
     }
 
-    @ExperimentalSerializationApi
-    @InternalSerializationApi
     private fun concolic(originalContext: ExecutionContext, analysisContext: ExecutionContext) {
         val traceManager = InstructionTraceManager()
         val cm = createCoverageCounter(originalContext.cm, traceManager)
