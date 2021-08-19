@@ -18,5 +18,5 @@ fun main(args: Array<String>) {
         EasyRandomDriver(),
         listOf()
     )
-    UIListener("localhost", 8080, listOf(jar), context)
+    UIListener("192.168.0.249", 8080, listOf(jar), context)
 }
