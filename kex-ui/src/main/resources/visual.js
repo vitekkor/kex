@@ -20,23 +20,28 @@ function closeNav() {
     document.getElementById("mySidebar").style.width = "0px";
 }
 
-let json;
-
 let socket = new WebSocket(`ws://${host}/`);
-
 
 function newResponse(code, message) {
     return JSON.stringify({code: code, message: message})
 }
 
-socket.onopen = function (e) {
+socket.onopen = function () {
     socket.send(newResponse(2, "Get jar name"));
 };
 
 socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
-    if (data.code === 2)
-        localStorage.setItem("file", data.message);
+    switch (data.code) {
+        case 1:
+            // show trace
+            break;
+        case 2:
+            localStorage.setItem("file", data.message);
+            break;
+        default:
+            break;
+    }
 };
 
 socket.onclose = function (event) {
@@ -52,7 +57,7 @@ const req = new XMLHttpRequest();
 req.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file"), true);
 req.onreadystatechange = function () {
     if (req.readyState === XMLHttpRequest.DONE && req.status === 200) {
-        var response = JSON.parse(req.response, parseJson)
+        let response = JSON.parse(req.response, parseJson);
         graphIt(response.message)
     }
 }
@@ -162,7 +167,10 @@ const graph = new G6.Graph({
     modes: {
         default: [
             'drag-canvas',
-            'zoom-canvas',
+            {
+                type: 'zoom-canvas',
+                minZoom: 0.0001,
+            },
             'click-select',
             /*{
                 type: 'tooltip',
@@ -180,12 +188,42 @@ const graph = new G6.Graph({
             },*/
         ],
     },
-    fitView: true,
+    //fitView: true,
 });
 
 graph.setMinZoom(0.001);
+graph.on("afterlayout", () => {
+    node = graph.find('node', (n) => {
+        let node = n.getModel()
+        return n.getInEdges().length === 0 && node.name.replaceAll("/", ".") === localStorage.getItem("method").split("::").slice(1).join("::")
+    })
+    graph.focusItem(node);
+    graph.translate(0, -height / 2 + node.getBBox().y)
+})
+
+graph.on('node:contextmenu', (evt) => {
+    //evt.target.attrs.text
+    // evt.item.getModel()
+    //
+    evt.originalEvent.preventDefault()
+    let contextElement = document.getElementById("context-menu");
+    contextElement.style.top = evt.clientY + "px";
+    contextElement.style.left = evt.clientX + "px";
+    contextElement.classList.add("active");
+    localStorage.setItem("subMethod",
+        evt.item.getModel().name
+            .replaceAll("%", "%25")
+            .replaceAll("/", "%5C")
+            .replaceAll("=", "%3D")
+            .replaceAll(":", "%3A")
+            .replaceAll("    ", "")
+            .replaceAll("\"", "\\\""))
+    console.log(evt)
+})
 
 const defaultData = graph.save()
+
+var node;
 
 function graphIt(json) {
     document.querySelector('.spinner').style.display = "none";
@@ -193,13 +231,6 @@ function graphIt(json) {
     localStorage.setItem("method", json.name)
 
     graph.changeData(data);
-    var node = graph.find('node', (n) => {
-        let node = n.getModel()
-        return n.getInEdges().length === 0 && node.name.replaceAll("/", ".") === localStorage.getItem("method").split("::").slice(1).join("::")
-    })
-    //graph.fitView()
-    graph.focusItem(node);
-    graph.translate(0, -height / 2 + node.getBBox().y)
     /*if (typeof window !== 'undefined')
         window.onresize = () => {
             if (!graph || graph.get('destroyed')) return;
@@ -207,8 +238,6 @@ function graphIt(json) {
             graph.changeSize(container.scrollWidth, container.scrollHeight);
         };*/
 }
-
-let graphviz;
 
 function anotherMethod(method, jar) {
     graph.changeData(defaultData);
@@ -219,7 +248,10 @@ function anotherMethod(method, jar) {
     req.send(null);
 }
 
-function expand(jar, method, subMethod) {
+function expand() {
+    const jar = localStorage.getItem("file")
+    const method = localStorage.getItem("method")
+    const subMethod = localStorage.getItem("subMethod")
     const expandReq = new XMLHttpRequest();
     expandReq.onreadystatechange = function () {
         if (expandReq.readyState === XMLHttpRequest.DONE && expandReq.status === 200) {
@@ -258,89 +290,3 @@ function parseJson(k, value) {
     }
     return JSON.parse(value);
 }
-
-/*function start(j) {
-    json = j;
-    document.querySelector('.spinner').style.display = "none";
-
-    let width = window.innerWidth,
-        height = window.innerHeight - $('.logo').height() - 70;
-    console.log(height);
-
-    function transitionFactory() {
-        return d3.transition("main").ease(d3.easeExpInOut).duration(1000);
-    }
-
-    graphviz = d3.select(".graph-pane")
-        .graphviz()
-        .attributer(attributer)
-        .transition(transitionFactory)
-        .tweenShapes(true);
-
-
-    graphviz.renderDot(json);
-
-    function attributer(datum) {
-        let selection = d3.select(this);
-        if (datum.tag === "svg") {
-            //var width = d3.select('.graph-pane').node().clientWidth;
-            //var height = d3.select('.graph-pane').node().clientHeight;
-            const unit = 'px';
-            selection
-                .attr("width", width + unit)
-                .attr("height", height + unit);
-            datum.attributes.width = width + unit;
-            datum.attributes.height = height + unit;
-        }
-    }
-
-    d3.select(document).on("click", function () {
-        console.log(d3.event.target);
-        if (d3.event.target.innerText !== "☰") closeNav();
-        document.getElementById("context-menu").classList.remove("active");
-    })
-
-    d3.select(document).on("contextmenu", function () {
-        console.log(d3.event.target);
-        d3.event.preventDefault();
-        if (d3.event.target.tagName === "text") {
-            let contextElement = document.getElementById("context-menu");
-            contextElement.style.top = d3.event.offsetY + $('.logo').height() + 70 + "px";
-            contextElement.style.left = d3.event.offsetX + "px";
-            contextElement.classList.add("active");
-            Array.from(document.getElementsByClassName("item")).filter(it => {
-                return it.innerText === "Expand"
-            })[0].setAttribute("onClick",
-                "expand(\'"
-                + localStorage.getItem("file")
-                + "\', \'"
-                + localStorage.getItem("method")
-                + "\', \'"
-                + d3.event.target.textContent
-                    .replaceAll("%", "%25")
-                    .replaceAll("/", "%5C")
-                    .replaceAll("=", "%3D")
-                    .replaceAll(":", "%3A")
-                    .replaceAll("    ", "")
-                    .replaceAll("\"", "\\\"") + "\')");
-        }
-
-    });
-}
-
-
-
-function removeGraphName(graph) {
-    let resp = graph.split(" ");
-    for (const [i, s] of resp.entries()) {
-        if (s === "{") {
-            localStorage.setItem("method", resp.slice(1, i).join(" "))
-            for (let ii = 1; ii < i; ii++) {
-                resp[ii] = ""
-            }
-            break;
-        }
-    }
-    resp = resp.join(" ")
-    return resp;
-}*/
