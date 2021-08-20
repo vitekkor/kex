@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<body>
+<div>
+    <div id="mySidebar" class="sidebar">
+        <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+    </div>
+    <div id="context-menu">
+        <div class="item" onclick="expand()">Expand
+        </div>
+    </div>
+    <div class="logo" style="">
+        <object data="kex_logo.svg" height="50px"></object>
+    </div>
+    <div class="spinner">
+        <div class="cube1"></div>
+        <div class="cube2"></div>
+    </div>
+    <button class="openbtn" onclick="openNav()">&#9776;</button>
+    <div id="dialog" title="&#9888;" style="display: none;"></div>
+    <div class="graph-pane" id="container"></div>
+</div>
+<script src="https://gw.alipayobjects.com/os/lib/antv/g6/4.3.5/dist/g6.min.js"></script>
+<script src="visual.js"></script>
+</body>

@@ -1,0 +1,223 @@
+a {
+    color: inherit;
+    text-decoration: inherit;
+}
+
+text {
+    display: inline;
+    font: 10px sans-serif;
+}
+
+body {
+    margin: 0;
+    font-family: "Open Sans", sans-serif;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+#context-menu {
+    position: fixed;
+    z-index: 10000;
+    width: 150px;
+    background: #1b1a1a;
+    border-radius: 5px;
+    transform: scale(0);
+    transform-origin: top left;
+}
+
+#context-menu.active {
+    transform: scale(1);
+    transition: transform 300ms ease-in-out;
+}
+
+#context-menu .item {
+    padding: 8px 10px;
+    font-size: 15px;
+    color: #eee;
+}
+
+#context-menu .item:hover {
+    background: #555;
+    border-radius: 5px;
+}
+
+/*#context-menu hr {
+    margin: 2px 0px;
+    border-color: #555;
+}*/
+
+.logo {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+p {
+    font-family: "JetBrains Mono", monospace;
+    text-align: center;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.button-label {
+    font-family: "JetBrains Mono", monospace;
+    border: 1px solid #ccc;
+    display: inline-block;
+    padding: 6px 12px;
+    cursor: pointer;
+    text-align: center;
+}
+
+#label-start {
+    margin-top: 20px;
+    display: none;
+}
+
+#start {
+    margin-top: 20px;
+    display: none;
+}
+
+.input-div {
+    margin-top: 200px;
+    text-align: center;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    position: relative;
+    z-index: 1000;
+}
+
+.cube1, .cube2 {
+    background-color: #333;
+    width: 15px;
+    height: 15px;
+    position: absolute;
+
+
+    -webkit-animation: sk-cubemove 1.8s infinite ease-in-out;
+    animation: sk-cubemove 1.8s infinite ease-in-out;
+}
+
+.cube2 {
+    -webkit-animation-delay: -0.9s;
+    animation-delay: -0.9s;
+}
+
+@-webkit-keyframes sk-cubemove {
+    25% { -webkit-transform: translateX(42px) rotate(-90deg) scale(0.5) }
+    50% { -webkit-transform: translateX(42px) translateY(42px) rotate(-180deg) }
+    75% { -webkit-transform: translateX(0px) translateY(42px) rotate(-270deg) scale(0.5) }
+    100% { -webkit-transform: rotate(-360deg) }
+}
+
+@keyframes sk-cubemove {
+    25% {
+        transform: translateX(42px) rotate(-90deg) scale(0.5);
+        -webkit-transform: translateX(42px) rotate(-90deg) scale(0.5);
+    } 50% {
+          transform: translateX(42px) translateY(42px) rotate(-179deg);
+          -webkit-transform: translateX(42px) translateY(42px) rotate(-179deg);
+      } 50.1% {
+            transform: translateX(42px) translateY(42px) rotate(-180deg);
+            -webkit-transform: translateX(42px) translateY(42px) rotate(-180deg);
+        } 75% {
+              transform: translateX(0px) translateY(42px) rotate(-270deg) scale(0.5);
+              -webkit-transform: translateX(0px) translateY(42px) rotate(-270deg) scale(0.5);
+          } 100% {
+                transform: rotate(-360deg);
+                -webkit-transform: rotate(-360deg);
+            }
+}
+
+.sidebar {
+    height: 100%; /* 100% Full-height */
+    width: 0; /* 0 width - change this with JavaScript */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Stay on top */
+    overflow-y: auto;
+    top: 0;
+    left: 0;
+    background-color: #111; /* Black*/
+    overflow-x: hidden; /* Disable horizontal scroll */
+    padding-top: 60px; /* Place content 60px from the top */
+    transition: 0.5s; /* 0.5 second transition effect to slide in the sidebar */
+}
+
+/* The sidebar links */
+.sidebar a {
+    overflow-wrap: anywhere;
+    /*overflow-wrap: normal;*/
+    padding: 8px 8px 8px 32px;
+    text-decoration: none;
+    font-size: 14px;
+    color: #818181;
+    display: block;
+    transition: 0.3s;
+}
+
+/* When you mouse over the navigation links, change their color */
+.sidebar a:hover {
+    color: #f1f1f1;
+}
+
+/* Position and style the close button (top right corner) */
+.sidebar .closebtn {
+    position: absolute;
+    top: 0;
+    right: 25px;
+    font-size: 36px;
+    margin-left: 50px;
+}
+
+/* The button used to open the sidebar */
+.openbtn {
+    font-size: 20px;
+    cursor: pointer;
+    background-color: #111;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+}
+
+.openbtn:hover {
+    background-color: #444;
+}
+
+/* Style page content - use this if you want to push the page content to the right when you open the side navigation */
+#main {
+    transition: margin-left .5s; /* If you want a transition effect */
+    padding: 20px;
+}
+
+/* On smaller screens, where height is less than 450px, change the style of the sidenav (less padding and a smaller font size) */
+@media screen and (max-height: 450px) {
+    .sidebar {padding-top: 15px;}
+    .sidebar a {font-size: 18px;}
+}
+
+#mySidebar::-webkit-scrollbar-track
+{
+    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+    background-color: #F5F5F5;
+}
+
+#mySidebar::-webkit-scrollbar
+{
+    width: 6px;
+    background-color: #F5F5F5;
+}
+
+#mySidebar::-webkit-scrollbar-thumb
+{
+    background-color: #000000;
+}
+
+.graph-pane {
+    z-index: 0;
+}
