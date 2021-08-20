@@ -221,6 +221,15 @@ graph.on('node:contextmenu', (evt) => {
     console.log(evt)
 })
 
+graph.on('click', (evt)=> {
+    if (evt.target.innerText !== "☰") closeNav();
+    document.getElementById("context-menu").classList.remove("active");
+})
+
+graph.on('contextmenu', (evt) => {
+    evt.preventDefault()
+})
+
 const defaultData = graph.save()
 
 var node;
@@ -240,7 +249,8 @@ function graphIt(json) {
 }
 
 function anotherMethod(method, jar) {
-    graph.changeData(defaultData);
+    graph.clear()
+    //graph.changeData(defaultData);
     document.querySelector('.spinner').style.display = "block";
 
     req.open("GET", `http://${host}/` + jar + "/" + method, true);
