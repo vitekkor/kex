@@ -1,16 +1,7 @@
-const host = document.location.host
+var h = (window.innerHeight - $('.logo').height() - $('.spinner').height() - 50) / 2
+document.querySelector('.spinner').style.margin = h + "px auto"
 
-$(function () {
-    $("#dialog").dialog({
-        autoOpen: false,
-        modal: true,
-        buttons: {
-            Ok: function () {
-                $(this).dialog("close");
-            }
-        }
-    });
-});
+const host = document.location.host
 
 function openNav() {
     document.getElementById("mySidebar").style.width = "300px";
@@ -132,7 +123,6 @@ const graph = new G6.Graph({
     container: 'container',
     width,
     height,
-    //fitCenter: true,
     layout: {
         type: 'dagre',
         ranksep: 25,
@@ -188,7 +178,6 @@ const graph = new G6.Graph({
             },*/
         ],
     },
-    //fitView: true,
 });
 
 graph.setMinZoom(0.001);
@@ -211,7 +200,6 @@ let parent;
 graph.on('node:contextmenu', (evt) => {
     //evt.target.attrs.text
     // evt.item.getModel()
-    //
     parent = evt.item
     evt.originalEvent.preventDefault()
     let contextElement = document.getElementById("context-menu");
@@ -332,15 +320,6 @@ function expand() {
     document.querySelector('.spinner').style.display = "block";
     document.querySelector('.graph-pane').style.display = "none";
     expandReq.send(null)
-}
-
-
-function afterWaitingWithDialog(text) {
-    document.querySelector('.spinner').style.display = "none";
-    document.querySelector('.graph-pane').style.display = "block";
-    document.getElementById("dialog").style.display = "block";
-    document.getElementById("dialog").innerText = text;
-    $("#dialog").dialog("open");
 }
 
 function parseJson(k, value) {

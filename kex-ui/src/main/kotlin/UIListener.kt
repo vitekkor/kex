@@ -174,7 +174,7 @@ class UIListener(
     }
 
     @Serializable
-    data class Update(val nodeId: String, val subGraph: String)
+    data class Trace(val nodesId: List<String>)
 
     fun callBack(executionResult: ExecutionResult) = runBlocking {
         executionResult.trace.trace.trace.forEach {
