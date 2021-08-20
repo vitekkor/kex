@@ -33,10 +33,10 @@ socket.onopen = function () {
 socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
     switch (data.code) {
-        case 1:
+        case 2:
             // show trace
             break;
-        case 2:
+        case 3:
             localStorage.setItem("file", data.message);
             break;
         default:
@@ -193,7 +193,12 @@ const graph = new G6.Graph({
 
 graph.setMinZoom(0.001);
 graph.on("afterlayout", () => {
-    node = graph.find('node', (n) => {
+    if (parent) {
+        graph.focusItem(parent)
+        parent = null
+        return
+    }
+    let node = graph.find('node', (n) => {
         let node = n.getModel()
         return n.getInEdges().length === 0 && node.name.replaceAll("/", ".") === localStorage.getItem("method").split("::").slice(1).join("::")
     })
@@ -201,27 +206,33 @@ graph.on("afterlayout", () => {
     graph.translate(0, -height / 2 + node.getBBox().y)
 })
 
+let parent;
+
 graph.on('node:contextmenu', (evt) => {
     //evt.target.attrs.text
     // evt.item.getModel()
     //
+    parent = evt.item
     evt.originalEvent.preventDefault()
     let contextElement = document.getElementById("context-menu");
     contextElement.style.top = evt.clientY + "px";
     contextElement.style.left = evt.clientX + "px";
     contextElement.classList.add("active");
-    localStorage.setItem("subMethod",
-        evt.item.getModel().name
-            .replaceAll("%", "%25")
-            .replaceAll("/", "%5C")
-            .replaceAll("=", "%3D")
-            .replaceAll(":", "%3A")
-            .replaceAll("    ", "")
-            .replaceAll("\"", "\\\""))
-    console.log(evt)
+    localStorage.setItem("subMethod", parent.getModel().name)
 })
 
-graph.on('click', (evt)=> {
+function escapeURL(str) {
+    return str
+        .replaceAll("%", "%25")
+        .replaceAll("\n", "%0A")
+        .replaceAll("/", "%5C")
+        .replaceAll("=", "%3D")
+        .replaceAll(":", "%3A")
+        .replaceAll("    ", "")
+        .replaceAll("\"", "\\\"")
+}
+
+graph.on('click', (evt) => {
     if (evt.target.innerText !== "☰") closeNav();
     document.getElementById("context-menu").classList.remove("active");
 })
@@ -229,10 +240,6 @@ graph.on('click', (evt)=> {
 graph.on('contextmenu', (evt) => {
     evt.preventDefault()
 })
-
-const defaultData = graph.save()
-
-var node;
 
 function graphIt(json) {
     document.querySelector('.spinner').style.display = "none";
@@ -250,7 +257,6 @@ function graphIt(json) {
 
 function anotherMethod(method, jar) {
     graph.clear()
-    //graph.changeData(defaultData);
     document.querySelector('.spinner').style.display = "block";
 
     req.open("GET", `http://${host}/` + jar + "/" + method, true);
@@ -259,23 +265,66 @@ function anotherMethod(method, jar) {
 }
 
 function expand() {
+    document.getElementById("context-menu").classList.remove("active");
     const jar = localStorage.getItem("file")
     const method = localStorage.getItem("method")
-    const subMethod = localStorage.getItem("subMethod")
+    const subMethod = escapeURL(localStorage.getItem("subMethod"))
     const expandReq = new XMLHttpRequest();
     expandReq.onreadystatechange = function () {
         if (expandReq.readyState === XMLHttpRequest.DONE && expandReq.status === 200) {
             document.querySelector("body").style.pointerEvents = "all"
-            /*if (expandReq.response.includes("Can't expand")) {
-                afterWaitingWithDialog(expandReq.response)
-            } else if (expandReq.response.includes("Has already been expanded")) {
-                afterWaitingWithDialog(expandReq.response)
-            } else {*/
-            const response = JSON.parse(req.response, parseJson);
+            let response = JSON.parse(expandReq.response)
+            response = response.code !== 10 ? JSON.parse(expandReq.response, parseJson) : response
             document.querySelector('.spinner').style.display = "none";
             document.querySelector('.graph-pane').style.display = "block";
-
-            //}
+            if (response.code === 10) {
+                alert(response.message)
+                return;
+            }
+            const name = response.message.name.split("::").slice(1).join("::")
+            let lastId = parseInt(graph.getNodes().length)
+            let outEdges = parent.getOutEdges()
+            let alreadyExpanded = outEdges.find(outEdge => {
+                return outEdge.getTarget().getModel().name.replaceAll("/", ".") === name
+            })
+            if (alreadyExpanded) {
+                alert("Already expanded")
+                return
+            }
+            outEdges.forEach(edge => {
+                if (edge) parent.removeEdge(edge)
+            })
+            response.message.nodes.forEach(node => {
+                if (node) {
+                    node.id = (parseInt(node.id) + lastId).toString()
+                    graph.addItem('node', node)
+                }
+            })
+            let start = response.message.nodes.find(node => {
+                return node.name.replaceAll("/", ".") === name
+            })
+            graph.addItem('edge', {source: parent.getID(), target: start.id})
+            response.message.links.forEach(link => {
+                if (link) {
+                    link.source = (parseInt(link.source) + lastId).toString()
+                    link.target = (parseInt(link.target) + lastId).toString()
+                    graph.addItem('edge', link)
+                }
+            })
+            let ends = response.message.nodes.filter(node => {
+                return node.name.includes("return")
+            })
+            ends.forEach(end => {
+                if (end) {
+                    outEdges.forEach(outEdge => {
+                        if (outEdge) {
+                            graph.addItem('edge', {source: end.id, target: outEdge.getTarget().getID()})
+                            graph.removeItem(outEdge)
+                        }
+                    })
+                }
+            })
+            graph.layout()
         }
     }
     expandReq.open("GET", `http://${host}/` + jar + "/" + method + "/" + subMethod, true);

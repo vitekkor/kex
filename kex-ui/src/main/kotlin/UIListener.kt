@@ -77,7 +77,7 @@ class UIListener(
                                         Frame.Text(
                                             Json.encodeToString(
                                                 Response(
-                                                    2,
+                                                    3,
                                                     containers.first().path.name
                                                 )
                                             )
@@ -128,19 +128,13 @@ class UIListener(
                             .any { s -> s == it.name.split("::")[0] } && (regex.find(it.name)?.value
                             ?: "").split(",").size == args
                     }
-                    val graph = graphs.find { it.name == call.parameters["method"] }!!
-                    println("Expand: method - ${graph.name}; subMethod - ${subGraph?.name}")
-                    if (subGraph != null && subGraph != graph) {
-                        /*if (graph.elements.find { it is SubGraph && it.name == subGraph.name } != null) call.respondText(
-                            "Has already been expanded"
-                        ) else {*/
-                        // TODO refactor
-                        val update = Update(graph.getNodeId(subGraph.name.split("::")[0]), subGraph.toJson())
-                        val response = Response(1, Json.encodeToString(update))
-                        call.respondText(Json.encodeToString(response))
-                    } else {
-                        call.respondText("Can't expand $sM instruction")
-                    }
+                    //val graph = graphs.find { it.name == call.parameters["method"] }!!
+                    println("Expand: subMethod - ${subGraph?.name}")
+                    if (subGraph != null)
+                        call.respondText(Response(1, subGraph.toJson()).toJson())
+                    else
+                        call.respondText(Response(10, "Can't expand $sM instruction").toJson())
+
                 }
             }
         }.start(wait = true)
