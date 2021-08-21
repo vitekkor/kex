@@ -108,27 +108,20 @@
                             <goal>test-compile</goal>
                         </goals>
                     </execution>
-                    <execution>
-                        <id>js</id>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>js</goal>
-                        </goals>
-                    </execution>
                 </executions>
             </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.0</version>
-                <configuration>
-                    <systemPropertyVariables>
-                        <!--suppress UnresolvedMavenProperty -->
-                        <root.dir>${project.parent.basedir.canonicalPath}</root.dir>
-                        <project.version>${project.version}</project.version>
-                    </systemPropertyVariables>
-                </configuration>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
