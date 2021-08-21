@@ -25,7 +25,9 @@ class KFGGraph(val name: String) {
     }
 
     fun getNodeId(name: String): String {
-        return nodes.find { it.name.contains(name) }?.id ?: "-1"
+        return nodes.find {
+            it.name.replace(Regex("""\s"""), "").replace("\\\"", "\"").contains(name.replace(Regex("""\s"""), ""))
+        }?.id ?: "-1"
     }
 
     fun toJson(): String {

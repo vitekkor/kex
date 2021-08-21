@@ -24,11 +24,11 @@ class UIListener(
     host: String,
     port: Int,
     private val containers: List<Container>,
-    private val context: ExecutionContext
+    context: ExecutionContext
 ) {
     private val kfgGraphs = createKFGGraphs(containers, context)
 
-    private lateinit var client: DefaultWebSocketSession
+    private var client: DefaultWebSocketSession? = null
 
     init {
         startServer(host, port)
@@ -160,6 +160,7 @@ class UIListener(
             kfgGraphs[jar.path.name] = graphs
             //jar.update(cm, jar.path, jar.classLoader)
         }
+        log.info("Created")
         return kfgGraphs
     }
 
@@ -173,12 +174,17 @@ class UIListener(
         }
     }
 
-    @Serializable
-    data class Trace(val nodesId: List<String>)
-
     fun callBack(executionResult: ExecutionResult) = runBlocking {
-        executionResult.trace.trace.trace.forEach {
-            println("Instruction - ${it.print()}")
+        val method = executionResult.trace.trace.trace.firstOrNull()?.parent?.parent ?: return@runBlocking
+        val name = method.name + "::" + method.prototype.replace("/", ".")
+        val graph = kfgGraphs.values.first().find { it.name == name }!!
+        val nodesId = executionResult.trace.trace.trace.map {
+            graph.getNodeId(
+                it.parent.print().replace(Regex(""" *\t//predecessors *|\t"""), "")
+            )
         }
+        val resp = Response(2, "").toJson() //Trace(nodesId).toString()
+        log.debug("RESPONSE - $resp")
+        client?.send(Frame.Text(resp))
     }
 }
