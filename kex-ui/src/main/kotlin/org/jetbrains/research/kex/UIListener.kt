@@ -18,7 +18,6 @@ import org.jetbrains.research.kex.config.kexConfig
 import org.jetbrains.research.kex.trace.symbolic.ExecutionResult
 import org.jetbrains.research.kfg.container.Container
 import org.jetbrains.research.kthelper.logging.log
-import toGraph
 import java.time.Duration
 import kotlin.io.path.name
 
