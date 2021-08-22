@@ -1,5 +1,6 @@
 package org.jetbrains.research.kex.asm.analysis.concolic
 
+import org.jetbrains.research.kex.UIListener.Companion.uiListener
 import UIListener.Companion.uiListener
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
@@ -303,9 +304,11 @@ class InstructionConcolicChecker(
 
             val state = stateDeque.pollFirst()
             log.debug { "Processing state: $state" }
+            uiListener?.callBack(state)
 
             val mutatedState = mutateState(state) ?: continue
             log.debug { "Mutated state: $mutatedState" }
+            uiListener?.callBack(SuccessResult(mutatedState))
             yield()
 
             val newState = check(method, mutatedState) ?: continue

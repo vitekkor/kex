@@ -1,3 +1,5 @@
+package org.jetbrains.research.kex
+
 import org.jetbrains.research.kthelper.algorithm.Viewable
 
 fun Viewable.toGraph(name: String): KFGGraph {
