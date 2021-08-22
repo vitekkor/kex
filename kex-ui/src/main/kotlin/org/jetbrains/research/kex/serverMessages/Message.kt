@@ -1,6 +1,6 @@
 package org.jetbrains.research.kex.serverMessages
 
-import KFGGraph
+import org.jetbrains.research.kex.KFGGraph
 import kotlinx.serialization.Serializable
 
 @Serializable

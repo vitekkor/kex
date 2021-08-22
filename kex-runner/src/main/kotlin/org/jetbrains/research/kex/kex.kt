@@ -1,6 +1,6 @@
 package org.jetbrains.research.kex
 
-import UIListener.Companion.ui
+import org.jetbrains.research.kex.UIListener.Companion.ui
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import org.jetbrains.research.kex.asm.analysis.concolic.InstructionConcolicChecker

@@ -1,3 +1,5 @@
+package org.jetbrains.research.kex
+
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.http.cio.websocket.*
@@ -12,11 +14,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.jetbrains.research.kex.ExecutionContext
 import org.jetbrains.research.kex.config.kexConfig
 import org.jetbrains.research.kex.trace.symbolic.ExecutionResult
 import org.jetbrains.research.kfg.container.Container
 import org.jetbrains.research.kthelper.logging.log
+import toGraph
 import java.time.Duration
 import kotlin.io.path.name
 
@@ -29,6 +31,7 @@ class UIListener(
     private val kfgGraphs = createKFGGraphs(containers, context)
 
     private var client: DefaultWebSocketSession? = null
+    //private lateinit var context: CoroutineContext
 
     init {
         startServer(host, port)
@@ -50,6 +53,7 @@ class UIListener(
 
     private fun startServer(host: String, port: Int) {
         embeddedServer(Netty, port = port, host = host) {
+            //context = coroutineContext
             println("Server starts at http://$host:$port/")
             install(CORS) {
                 anyHost()
