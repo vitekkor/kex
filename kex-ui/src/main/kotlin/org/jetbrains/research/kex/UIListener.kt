@@ -28,6 +28,7 @@ class UIListener(
     context: ExecutionContext
 ) {
     private val kfgGraphs = createKFGGraphs(containers, context)
+    private val traces = mutableListOf<ExecutionResult>()
 
     private var client: DefaultWebSocketSession? = null
     //private lateinit var context: CoroutineContext
@@ -53,7 +54,7 @@ class UIListener(
     private fun startServer(host: String, port: Int) {
         embeddedServer(Netty, port = port, host = host) {
             //context = coroutineContext
-            println("Server starts at http://$host:$port/")
+            //println("Server starts at http://$host:$port/")
             install(CORS) {
                 anyHost()
             }
@@ -65,6 +66,7 @@ class UIListener(
                     resource("/", "graph.html")
                     resource("/style.css", "style.css")
                     resource("/kex_logo.svg", "kex_logo.svg")
+                    resource("/info.svg", "info.svg")
                     resource("/visual.js", "visual.js")
                 }
 
@@ -75,19 +77,11 @@ class UIListener(
                             is Frame.Text -> {
                                 val text = frame.readText()
                                 val r = Json.decodeFromString<Response>(text)
-                                if (r.code == 2)
-                                    outgoing.send(
-                                        Frame.Text(
-                                            Json.encodeToString(
-                                                Response(
-                                                    3,
-                                                    containers.first().path.name
-                                                )
-                                            )
-                                        )
-                                    )
-                                else
-                                    outgoing.send(Frame.Text("YOU SAID: $text"))
+                                when (r.code) {
+                                    20 -> processTrace(r.message.toInt())
+                                    3 -> outgoing.send(Frame.Text(Response(3, containers.first().path.name).toJson()))
+                                    else -> outgoing.send(Frame.Text("YOU SAID: $text"))
+                                }
                                 if (text.equals("bye", ignoreCase = true)) {
                                     close(CloseReason(CloseReason.Codes.NORMAL, "Client said BYE"))
                                 }
@@ -140,7 +134,9 @@ class UIListener(
 
                 }
             }
-        }.start(wait = true)
+        }.start(wait = false)
+        log.info("Server starts at http://$host:$port/")
+        Thread.sleep(3000)
     }
 
     private fun createKFGGraphs(
@@ -164,6 +160,7 @@ class UIListener(
             //jar.update(cm, jar.path, jar.classLoader)
         }
         log.info("Created")
+        println("Created")
         return kfgGraphs
     }
 
@@ -177,17 +174,38 @@ class UIListener(
         }
     }
 
+    @Serializable
+    data class Trace(val method: String, val nodesId: List<String>) {
+        fun toJson(): String {
+            return Json.encodeToString(this)
+        }
+    }
+
     fun callBack(executionResult: ExecutionResult) = runBlocking {
-        val method = executionResult.trace.trace.trace.firstOrNull()?.parent?.parent ?: return@runBlocking
+        traces.add(executionResult)
+        val name = executionResult.getMethodName() ?: return@runBlocking
+        client?.send(Frame.Text(Response(2, name).toJson()))
+    }
+
+    private suspend fun processTrace(index: Int) {
+        val executionResult = traces[index]
+        val method = executionResult.trace.trace.trace.firstOrNull()?.parent?.parent ?: return
         val name = method.name + "::" + method.prototype.replace("/", ".")
         val graph = kfgGraphs.values.first().find { it.name == name }!!
         val nodesId = executionResult.trace.trace.trace.map {
             graph.getNodeId(
-                it.parent.print().replace(Regex(""" *\t//predecessors *|\t"""), "")
+                it.parent.print()
+                    .replace(Regex(""" *\t//predecessors *|\t"""), "")
+                    .replace("\\\"", "\"")
             )
         }
-        val resp = Response(2, "").toJson() //Trace(nodesId).toString()
+        val resp = Response(20, Trace(name, nodesId).toJson()).toJson()
         log.debug("RESPONSE - $resp")
-        client?.send(Frame.Text(resp))
+        client!!.send(Frame.Text(resp))
+    }
+
+    private fun ExecutionResult.getMethodName(): String? {
+        val method = trace.trace.trace.firstOrNull()?.parent?.parent ?: return null
+        return method.name + "::" + method.prototype.replace("/", ".")
     }
 }
