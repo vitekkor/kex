@@ -71,21 +71,6 @@ input[type="file"] {
     text-align: center;
 }
 
-#label-start {
-    margin-top: 20px;
-    display: none;
-}
-
-#start {
-    margin-top: 20px;
-    display: none;
-}
-
-.input-div {
-    margin-top: 200px;
-    text-align: center;
-}
-
 .spinner {
     width: 40px;
     height: 40px;
@@ -148,7 +133,20 @@ input[type="file"] {
     padding-top: 60px; /* Place content 60px from the top */
     transition: 0.5s; /* 0.5 second transition effect to slide in the sidebar */
 }
+.nice-select {
+    margin-left: 10px;
+}
 
+.method {
+    overflow-wrap: anywhere;
+    font-family: "JetBrains Mono", monospace;
+}
+
+li {
+    list-style-position:inside;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 /* The sidebar links */
 .sidebar a {
     overflow-wrap: anywhere;
@@ -216,8 +214,4 @@ input[type="file"] {
 #mySidebar::-webkit-scrollbar-thumb
 {
     background-color: #000000;
-}
-
-.graph-pane {
-    z-index: 0;
 }
