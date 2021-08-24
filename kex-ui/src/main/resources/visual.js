@@ -3,8 +3,17 @@ document.querySelector('.spinner').style.margin = h + "px auto"
 
 const host = document.location.host
 
+let width = window.innerWidth,
+    height = window.innerHeight - $('.logo').height() - 70;
+
+var sheet = window.document.styleSheets[window.document.styleSheets.length - 1];
+sheet.addRule('.nice-select-dropdown', `width: ${width - 20}px`)
+sheet.addRule('.option', `width: ${width - 20}px`);
+
+const traces = []
+
 function openNav() {
-    document.getElementById("mySidebar").style.width = "300px";
+    document.getElementById("mySidebar").style.width = width +"px";
 }
 
 function closeNav() {
@@ -18,13 +27,18 @@ function newResponse(code, message) {
 }
 
 socket.onopen = function () {
-    socket.send(newResponse(2, "Get jar name"));
+    socket.send(newResponse(3, "Get jar name"));
 };
 
 socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
     switch (data.code) {
         case 2:
+            traces.push({index: traces.length, name: data.message})
+            newTrace(data.message)
+            // new trace
+            break;
+        case 20:
             // show trace
             break;
         case 3:
@@ -58,21 +72,41 @@ const methods = new XMLHttpRequest();
 methods.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file") + "-all", true);
 methods.onreadystatechange = function () {
     if (methods.readyState === XMLHttpRequest.DONE && methods.status === 200) {
-        let sidebar = document.querySelector('.sidebar');
+        let sidebar = document.querySelector('#seachable-select');
         JSON.parse(methods.response).methods.forEach(method => {
-            let a = document.createElement("a");
-            a.setAttribute("class", "method-link");
-            a.setAttribute("onclick", "anotherMethod(\'" + method + "\',\'" + localStorage.getItem("file") + "\');");
-            a.setAttribute("href", "#");
-            a.innerHTML = method.replace("<", "").replace(">", "");
-            sidebar.appendChild(a);
+            let option = document.createElement("option");
+            //a.setAttribute("class", "method-link");
+            //a.setAttribute("onclick", "anotherMethod(\'" + method + "\',\'" + localStorage.getItem("file") + "\');");
+            //a.setAttribute("href", "#");
+            option.innerHTML = method.replace("<", "").replace(">", "");
+            sidebar.appendChild(option);
         });
+        var options = {searchable: true};
+        NiceSelect.bind(document.getElementById("seachable-select"), options);
+        document.getElementById("seachable-select").remove()
+        document.querySelectorAll('li').forEach(li => {
+            if (li) {
+                let text = document.createElement("text");
+                text.innerText = li.innerHTML
+                text.setAttribute('class', 'method')
+                li.innerHTML = ""
+                li.appendChild(text)
+            }
+        })
     }
 }
 methods.send(null);
 
-let width = window.innerWidth,
-    height = window.innerHeight - $('.logo').height() - 70;
+function change(el) {
+    const method = el.innerText
+    const jar = localStorage.getItem("file")
+    graph.clear()
+    document.querySelector('.spinner').style.display = "block";
+
+    req.open("GET", `http://${host}/` + jar + "/" + method, true);
+    closeNav();
+    req.send(null);
+}
 
 G6.registerNode(
     'node',
@@ -181,6 +215,7 @@ const graph = new G6.Graph({
 });
 
 graph.setMinZoom(0.001);
+
 graph.on("afterlayout", () => {
     if (parent) {
         graph.focusItem(parent)
@@ -198,8 +233,6 @@ graph.on("afterlayout", () => {
 let parent;
 
 graph.on('node:contextmenu', (evt) => {
-    //evt.target.attrs.text
-    // evt.item.getModel()
     parent = evt.item
     evt.originalEvent.preventDefault()
     let contextElement = document.getElementById("context-menu");
@@ -208,17 +241,6 @@ graph.on('node:contextmenu', (evt) => {
     contextElement.classList.add("active");
     localStorage.setItem("subMethod", parent.getModel().name)
 })
-
-function escapeURL(str) {
-    return str
-        .replaceAll("%", "%25")
-        .replaceAll("\n", "%0A")
-        .replaceAll("/", "%5C")
-        .replaceAll("=", "%3D")
-        .replaceAll(":", "%3A")
-        .replaceAll("    ", "")
-        .replaceAll("\"", "\\\"")
-}
 
 graph.on('click', (evt) => {
     if (evt.target.innerText !== "☰") closeNav();
@@ -243,15 +265,6 @@ function graphIt(json) {
         };*/
 }
 
-function anotherMethod(method, jar) {
-    graph.clear()
-    document.querySelector('.spinner').style.display = "block";
-
-    req.open("GET", `http://${host}/` + jar + "/" + method, true);
-    closeNav();
-    req.send(null);
-}
-
 function expand() {
     document.getElementById("context-menu").classList.remove("active");
     const jar = localStorage.getItem("file")
@@ -266,7 +279,7 @@ function expand() {
             document.querySelector('.spinner').style.display = "none";
             document.querySelector('.graph-pane').style.display = "block";
             if (response.code === 10) {
-                alert(response.message)
+                iziAlert(response.message)
                 return;
             }
             const name = response.message.name.split("::").slice(1).join("::")
@@ -276,7 +289,7 @@ function expand() {
                 return outEdge.getTarget().getModel().name.replaceAll("/", ".") === name
             })
             if (alreadyExpanded) {
-                alert("Already expanded")
+                iziAlert("Already expanded")
                 return
             }
             outEdges.forEach(edge => {
@@ -322,9 +335,60 @@ function expand() {
     expandReq.send(null)
 }
 
+function escapeURL(str) {
+    return str
+        .replaceAll("%", "%25")
+        .replaceAll("\n", "%0A")
+        .replaceAll("/", "%2F")
+        .replaceAll("=", "%3D")
+        .replaceAll(":", "%3A")
+        .replaceAll("    ", "")
+        .replaceAll("\"", "'")
+        .replaceAll("\\", "%5C")
+}
+
 function parseJson(k, value) {
     if (k === '') {
         return value;
     }
     return JSON.parse(value);
+}
+
+function newTrace(name) {
+    iziToast.success({
+        id: 'success',
+        title: 'New trace',
+        message: name,
+        iconUrl: 'info.svg',
+        timeout: false,
+        progressBar: false,
+        onClosed: function () {
+            //alert("Closed")
+        },
+        buttons: [
+            ['<button><b>Show</b></button>', function (instance, toast) {
+
+                instance.hide({ transitionOut: 'flipOutX' }, toast, 'button');
+
+            }, true]
+        ],
+        transitionIn: 'fadeInUp',
+        transitionOut: 'fadeOutDown'
+    });
+}
+
+function iziAlert(text) {
+    iziToast.warning({
+        id: 'warning',
+        title: 'Warning',
+        message: text,
+        iconUrl: 'info.svg',
+        timeout: 5000,
+        progressBar: false,
+        onClosed: function () {
+            //alert("Closed")
+        },
+        transitionIn: 'fadeInUp',
+        transitionOut: 'fadeOutDown'
+    });
 }
