@@ -11,9 +11,10 @@ sheet.addRule('.nice-select-dropdown', `width: ${width - 20}px`)
 sheet.addRule('.option', `width: ${width - 20}px`);
 
 const traces = []
+let tracesSelect = NiceSelect.bind(document.getElementById("traces"), {searchable: true});
 
 function openNav() {
-    document.getElementById("mySidebar").style.width = width +"px";
+    document.getElementById("mySidebar").style.width = width + "px";
 }
 
 function closeNav() {
@@ -34,12 +35,12 @@ socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
     switch (data.code) {
         case 2:
-            traces.push({index: traces.length, name: data.message})
             newTrace(data.message)
-            // new trace
             break;
         case 20:
-            // show trace
+            let json = JSON.parse(data.message)
+            if (json.method !== localStorage.getItem("method")) anotherMethod(json.method.split("::").slice(1).join("::"), false)
+            showTrace(json.nodesId)
             break;
         case 3:
             localStorage.setItem("file", data.message);
@@ -48,6 +49,32 @@ socket.onmessage = function (event) {
             break;
     }
 };
+
+function showTrace(trace) {
+    trace.forEach(id => {
+        if (id) {
+            let node = graph.findById(id)
+            if (node) {
+                graph.updateItem(node, {
+                    style: {
+                        stroke: '#17ff00',
+                        fill: '#acfca4',
+                    }
+                })
+            }
+        }
+    });
+    let node = graph.find('node', (n) => {
+        let node = n.getModel()
+        return n.getInEdges().length === 0 && node.name.replaceAll("/", ".") === localStorage.getItem("method").split("::").slice(1).join("::")
+    })
+    graph.updateItem(node, {
+        style: {
+            stroke: '#17ff00',
+            fill: '#acfca4',
+        }
+    })
+}
 
 socket.onclose = function (event) {
     if (event.wasClean) {
@@ -72,18 +99,14 @@ const methods = new XMLHttpRequest();
 methods.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file") + "-all", true);
 methods.onreadystatechange = function () {
     if (methods.readyState === XMLHttpRequest.DONE && methods.status === 200) {
-        let sidebar = document.querySelector('#seachable-select');
+        let sidebar = document.querySelector('#methods');
         JSON.parse(methods.response).methods.forEach(method => {
             let option = document.createElement("option");
-            //a.setAttribute("class", "method-link");
-            //a.setAttribute("onclick", "anotherMethod(\'" + method + "\',\'" + localStorage.getItem("file") + "\');");
-            //a.setAttribute("href", "#");
-            option.innerHTML = method.replace("<", "").replace(">", "");
+            option.innerHTML = method.replaceAll("<", "").replaceAll(">", "");
             sidebar.appendChild(option);
         });
-        var options = {searchable: true};
-        NiceSelect.bind(document.getElementById("seachable-select"), options);
-        document.getElementById("seachable-select").remove()
+        NiceSelect.bind(document.getElementById("methods"), {searchable: true});
+        document.getElementById("methods").remove()
         document.querySelectorAll('li').forEach(li => {
             if (li) {
                 let text = document.createElement("text");
@@ -97,13 +120,12 @@ methods.onreadystatechange = function () {
 }
 methods.send(null);
 
-function change(el) {
-    const method = el.innerText
+function anotherMethod(method, async = true) {
     const jar = localStorage.getItem("file")
     graph.clear()
     document.querySelector('.spinner').style.display = "block";
 
-    req.open("GET", `http://${host}/` + jar + "/" + method, true);
+    req.open("GET", `http://${host}/` + jar + "/" + method, async);
     closeNav();
     req.send(null);
 }
@@ -355,21 +377,27 @@ function parseJson(k, value) {
 }
 
 function newTrace(name) {
+    let trace = document.createElement('option');
+    trace.innerHTML = name.replaceAll("<", "").replaceAll(">", "") + ` - ${traces.length}`;
+    document.getElementById("traces").appendChild(trace)
+    tracesSelect.update()
+    traces.push({index: traces.length, name: name});
+
     iziToast.success({
         id: 'success',
         title: 'New trace',
-        message: name,
-        iconUrl: 'info.svg',
+        message: name.replaceAll("<", "").replaceAll(">", ""),
+        iconUrl: 'info.png',
         timeout: false,
         progressBar: false,
-        onClosed: function () {
-            //alert("Closed")
-        },
         buttons: [
             ['<button><b>Show</b></button>', function (instance, toast) {
 
-                instance.hide({ transitionOut: 'flipOutX' }, toast, 'button');
-
+                instance.hide({transitionOut: 'fadeOutDown'}, toast, 'button');
+                let index = traces.find(trace => {
+                    return trace.name === name
+                }).index
+                socket.send(newResponse(20, index.toString()));
             }, true]
         ],
         transitionIn: 'fadeInUp',
@@ -377,17 +405,21 @@ function newTrace(name) {
     });
 }
 
+function trace(trace) {
+    let index = trace.split(" ");
+    index = index[index.length - 1];
+    closeNav();
+    socket.send(newResponse(20, index.toString()));
+}
+
 function iziAlert(text) {
     iziToast.warning({
         id: 'warning',
         title: 'Warning',
         message: text,
-        iconUrl: 'info.svg',
+        iconUrl: 'warn.png',
         timeout: 5000,
         progressBar: false,
-        onClosed: function () {
-            //alert("Closed")
-        },
         transitionIn: 'fadeInUp',
         transitionOut: 'fadeOutDown'
     });

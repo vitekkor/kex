@@ -9,6 +9,9 @@ import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -20,6 +23,9 @@ import org.jetbrains.research.kfg.container.Container
 import org.jetbrains.research.kthelper.logging.log
 import java.time.Duration
 import kotlin.io.path.name
+import kotlin.system.measureTimeMillis
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
 class UIListener(
     host: String,
@@ -66,7 +72,8 @@ class UIListener(
                     resource("/", "graph.html")
                     resource("/style.css", "style.css")
                     resource("/kex_logo.svg", "kex_logo.svg")
-                    resource("/info.svg", "info.svg")
+                    resource("/info.png", "info.png")
+                    resource("/warn.png", "warn.png")
                     resource("/visual.js", "visual.js")
                 }
 
@@ -97,7 +104,7 @@ class UIListener(
                                 && call.parameters["method"]!!.removeSuffix("-all") == call.parameters["jar"] -> {
                             println("Respond - all methods in ${call.parameters["jar"]}")
                             val methods = Methods(kfgGraphs[call.parameters["jar"]]!!.map {
-                                it.name.split("::").drop(1).joinToString("")
+                                it.name.split("::").drop(1).joinToString("::")
                             })
                             call.respondText(Json.encodeToString(methods))
                         }
@@ -106,10 +113,10 @@ class UIListener(
                             call.respondText(response.toJson())
                         }
                         else -> {
-                            kfgGraphs[call.parameters["jar"]]?.find {
-                                it.name.split("::").drop(1).joinToString("") == call.parameters["method"]
-                            }
-                                ?.let { call.respondText(Response(0, it.toJson()).toJson()) }
+                            kfgGraphs[call.parameters["jar"]]!!.parallelStream().filter {
+                                it.name.split("::").drop(1).joinToString("::") == call.parameters["method"]
+                            }.findFirst().get()
+                                .let { call.respondText(Response(0, it.toJson()).toJson()) }
                         }
                     }
                 }
@@ -136,7 +143,9 @@ class UIListener(
             }
         }.start(wait = false)
         log.info("Server starts at http://$host:$port/")
-        Thread.sleep(3000)
+        println("Ready to continue?")
+        readLine()
+        //Thread.sleep(3000)
     }
 
     private fun createKFGGraphs(
@@ -188,10 +197,10 @@ class UIListener(
     }
 
     private suspend fun processTrace(index: Int) {
+        (1..25000).toList().parallelStream().forEach {  }
         val executionResult = traces[index]
-        val method = executionResult.trace.trace.trace.firstOrNull()?.parent?.parent ?: return
-        val name = method.name + "::" + method.prototype.replace("/", ".")
-        val graph = kfgGraphs.values.first().find { it.name == name }!!
+        val name = executionResult.getMethodName() ?: return
+        val graph = kfgGraphs.values.first().parallelStream().filter { it.name == name }.findFirst().get()
         val nodesId = executionResult.trace.trace.trace.map {
             graph.getNodeId(
                 it.parent.print()
