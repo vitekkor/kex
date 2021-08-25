@@ -10,7 +10,8 @@
 <div>
     <div id="mySidebar" class="sidebar">
         <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
-        <select id="seachable-select" onchange="change(document.getElementsByClassName('current')[0])"></select>
+        <select id="methods" onchange="anotherMethod(document.getElementsByClassName('current')[0].innerText)">Select a method...</select>
+        <select id="traces" onchange="trace(document.getElementsByClassName('current')[1].innerText)">Select a trace to show...</select>
     </div>
     <div id="context-menu">
         <div class="item" onclick="expand()">Expand
