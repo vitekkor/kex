@@ -8,10 +8,10 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.util.collections.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -23,9 +23,6 @@ import org.jetbrains.research.kfg.container.Container
 import org.jetbrains.research.kthelper.logging.log
 import java.time.Duration
 import kotlin.io.path.name
-import kotlin.system.measureTimeMillis
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 
 class UIListener(
     host: String,
@@ -37,7 +34,6 @@ class UIListener(
     private val traces = mutableListOf<ExecutionResult>()
 
     private var client: DefaultWebSocketSession? = null
-    //private lateinit var context: CoroutineContext
 
     init {
         startServer(host, port)
@@ -59,8 +55,6 @@ class UIListener(
 
     private fun startServer(host: String, port: Int) {
         embeddedServer(Netty, port = port, host = host) {
-            //context = coroutineContext
-            //println("Server starts at http://$host:$port/")
             install(CORS) {
                 anyHost()
             }
@@ -77,7 +71,7 @@ class UIListener(
                     resource("/visual.js", "visual.js")
                 }
 
-                webSocket("/") { // websocketSession
+                webSocket("/") {
                     client = this
                     for (frame in incoming) {
                         when (frame) {
@@ -132,7 +126,6 @@ class UIListener(
                             .any { s -> s == it.name.split("::")[0] } && (regex.find(it.name)?.value
                             ?: "").split(",").size == args
                     }
-                    //val graph = graphs.find { it.name == call.parameters["method"] }!!
                     println("Expand: subMethod - ${subGraph?.name}")
                     if (subGraph != null)
                         call.respondText(Response(1, subGraph.toJson()).toJson())
@@ -151,26 +144,25 @@ class UIListener(
     private fun createKFGGraphs(
         jars: List<Container>,
         context: ExecutionContext
-    ): MutableMap<String, MutableList<KFGGraph>> {
+    ): MutableMap<String, MutableList<KFGGraph>> = runBlocking {
         println("Creating CGF for ${containers.map { it.path }}")
         log.info("Creating CGF for ${containers.map { it.path }}")
         val kfgGraphs = mutableMapOf<String, MutableList<KFGGraph>>()
         for (jar in jars) {
             val cm = context.cm
             cm.initialize(jar)
-            val graphs = mutableListOf<KFGGraph>()
-            for (klass in cm.concreteClasses) {
-                for (method in klass.allMethods) {
+            val graphs = ConcurrentList<KFGGraph>()
+            cm.concreteClasses.asFlow().collect { klass ->
+                klass.allMethods.asFlow().collect { method ->
                     if (!method.isNative && method.isNotEmpty())
                         graphs.add(method.toGraph(method.name + "::" + method.prototype.replace("/", ".")))
                 }
             }
             kfgGraphs[jar.path.name] = graphs
-            //jar.update(cm, jar.path, jar.classLoader)
         }
         log.info("Created")
         println("Created")
-        return kfgGraphs
+        return@runBlocking kfgGraphs
     }
 
     @Serializable
@@ -191,13 +183,12 @@ class UIListener(
     }
 
     fun callBack(executionResult: ExecutionResult) = runBlocking {
-        traces.add(executionResult)
         val name = executionResult.getMethodName() ?: return@runBlocking
+        traces.add(executionResult)
         client?.send(Frame.Text(Response(2, name).toJson()))
     }
 
     private suspend fun processTrace(index: Int) {
-        (1..25000).toList().parallelStream().forEach {  }
         val executionResult = traces[index]
         val name = executionResult.getMethodName() ?: return
         val graph = kfgGraphs.values.first().parallelStream().filter { it.name == name }.findFirst().get()
