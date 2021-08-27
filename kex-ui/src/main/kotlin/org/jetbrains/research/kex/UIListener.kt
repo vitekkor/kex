@@ -68,7 +68,8 @@ class UIListener(
                     resource("/kex_logo.svg", "kex_logo.svg")
                     resource("/info.png", "info.png")
                     resource("/warn.png", "warn.png")
-                    resource("/visual.js", "visual.js")
+                    resource("/index.js", "index.js")
+                    resource("/nice-select2.js", "nice-select2.js")
                 }
 
                 webSocket("/") {
@@ -81,6 +82,19 @@ class UIListener(
                                 when (r.code) {
                                     20 -> processTrace(r.message.toInt())
                                     3 -> outgoing.send(Frame.Text(Response(3, containers.first().path.name).toJson()))
+                                    4 -> {
+                                        val prefix = if (traces.isEmpty()) "[" else "[\""
+                                        val postfix = if (traces.isEmpty()) "]" else "\"]"
+                                        outgoing.send(
+                                            Frame.Text(
+                                                Response(
+                                                    4,
+                                                    traces.map { it.getMethodName() }
+                                                        .joinToString("\",\"", prefix, postfix)
+                                                ).toJson()
+                                            )
+                                        )
+                                    }
                                     else -> outgoing.send(Frame.Text("YOU SAID: $text"))
                                 }
                                 if (text.equals("bye", ignoreCase = true)) {

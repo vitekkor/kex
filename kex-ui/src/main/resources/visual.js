@@ -1,3 +1,9 @@
+import G6 from "@antv/g6";
+import iziToast from "izitoast";
+import 'izitoast/dist/css/iziToast.min.css';
+import 'nice-select2/dist/css/nice-select2.css';
+import './graph.css';
+
 var h = (window.innerHeight - $('.logo').height() - $('.spinner').height() - 50) / 2
 document.querySelector('.spinner').style.margin = h + "px auto"
 
@@ -11,9 +17,12 @@ sheet.addRule('.nice-select-dropdown', `width: ${width - 20}px`)
 sheet.addRule('.option', `width: ${width - 20}px`);
 
 const traces = []
+document.querySelector('#traces').onchange = function () {
+    trace(document.getElementsByClassName('current')[1].innerText);
+}
 let tracesSelect = NiceSelect.bind(document.getElementById("traces"), {searchable: true});
 
-function openNav() {
+document.querySelector('.openbtn').onclick = function () {
     document.getElementById("mySidebar").style.width = width + "px";
 }
 
@@ -21,114 +30,7 @@ function closeNav() {
     document.getElementById("mySidebar").style.width = "0px";
 }
 
-let socket = new WebSocket(`ws://${host}/`);
-
-function newResponse(code, message) {
-    return JSON.stringify({code: code, message: message})
-}
-
-socket.onopen = function () {
-    socket.send(newResponse(3, "Get jar name"));
-};
-
-socket.onmessage = function (event) {
-    const data = JSON.parse(event.data);
-    switch (data.code) {
-        case 2:
-            newTrace(data.message)
-            break;
-        case 20:
-            let json = JSON.parse(data.message)
-            if (json.method !== localStorage.getItem("method")) anotherMethod(json.method.split("::").slice(1).join("::"), false)
-            showTrace(json.nodesId)
-            break;
-        case 3:
-            localStorage.setItem("file", data.message);
-            break;
-        default:
-            break;
-    }
-};
-
-function showTrace(trace) {
-    trace.forEach(id => {
-        if (id) {
-            let node = graph.findById(id)
-            if (node) {
-                graph.updateItem(node, {
-                    style: {
-                        stroke: '#17ff00',
-                        fill: '#acfca4',
-                    }
-                })
-            }
-        }
-    });
-    let node = graph.find('node', (n) => {
-        let node = n.getModel()
-        return n.getInEdges().length === 0 && node.name.replaceAll("/", ".") === localStorage.getItem("method").split("::").slice(1).join("::")
-    })
-    graph.updateItem(node, {
-        style: {
-            stroke: '#17ff00',
-            fill: '#acfca4',
-        }
-    })
-}
-
-socket.onclose = function (event) {
-    if (event.wasClean) {
-    } else {
-    }
-};
-
-socket.onerror = function (error) {
-};
-
-const req = new XMLHttpRequest();
-req.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file"), true);
-req.onreadystatechange = function () {
-    if (req.readyState === XMLHttpRequest.DONE && req.status === 200) {
-        let response = JSON.parse(req.response, parseJson);
-        graphIt(response.message)
-    }
-}
-req.send(null);
-
-const methods = new XMLHttpRequest();
-methods.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file") + "-all", true);
-methods.onreadystatechange = function () {
-    if (methods.readyState === XMLHttpRequest.DONE && methods.status === 200) {
-        let sidebar = document.querySelector('#methods');
-        JSON.parse(methods.response).methods.forEach(method => {
-            let option = document.createElement("option");
-            option.innerHTML = method.replaceAll("<", "").replaceAll(">", "");
-            sidebar.appendChild(option);
-        });
-        NiceSelect.bind(document.getElementById("methods"), {searchable: true});
-        document.getElementById("methods").remove()
-        document.querySelectorAll('li').forEach(li => {
-            if (li) {
-                let text = document.createElement("text");
-                text.innerText = li.innerHTML
-                text.setAttribute('class', 'method')
-                li.innerHTML = ""
-                li.appendChild(text)
-            }
-        })
-    }
-}
-methods.send(null);
-
-function anotherMethod(method, async = true) {
-    const jar = localStorage.getItem("file")
-    graph.clear()
-    document.querySelector('.spinner').style.display = "block";
-
-    req.open("GET", `http://${host}/` + jar + "/" + method, async);
-    closeNav();
-    req.send(null);
-}
+document.querySelector('.closebtn').onclick = closeNav;
 
 G6.registerNode(
     'node',
@@ -218,20 +120,6 @@ const graph = new G6.Graph({
                 minZoom: 0.0001,
             },
             'click-select',
-            /*{
-                type: 'tooltip',
-                formatText(model) {
-                    const cfg = model.conf;
-                    const text = [];
-                    if (cfg) {
-                        cfg.forEach((row) => {
-                            text.push(row.label + ':' + row.value + '<br>');
-                        });
-                    }
-                    return text.join('\n');
-                },
-                offset: 30,
-            },*/
         ],
     },
 });
@@ -273,21 +161,125 @@ graph.on('contextmenu', (evt) => {
     evt.preventDefault()
 })
 
+const req = new XMLHttpRequest();
+
+req.onreadystatechange = function () {
+    if (req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+        let response = JSON.parse(req.response, parseJson);
+        graphIt(response.message)
+    }
+}
+
+const methods = new XMLHttpRequest();
+methods.onreadystatechange = function () {
+    if (methods.readyState === XMLHttpRequest.DONE && methods.status === 200) {
+        let sidebar = document.querySelector('#methods');
+        JSON.parse(methods.response).methods.forEach(method => {
+            let option = document.createElement("option");
+            option.innerHTML = method.replaceAll("<", "").replaceAll(">", "");
+            sidebar.appendChild(option);
+        });
+        NiceSelect.bind(document.getElementById("methods"), {searchable: true});
+        document.getElementById("methods").remove()
+        document.querySelectorAll('li').forEach(li => {
+            if (li) {
+                let text = document.createElement("text");
+                text.innerText = li.innerHTML
+                text.setAttribute('class', 'method')
+                li.innerHTML = ""
+                li.appendChild(text)
+            }
+        })
+    }
+}
+
+let socket = new WebSocket(`ws://${host}/`);
+
+function newResponse(code, message) {
+    return JSON.stringify({code: code, message: message})
+}
+
+socket.onopen = function () {
+    socket.send(newResponse(3, "Get jar name"));
+    socket.send(newResponse(4, "Get available traces"));
+};
+
+socket.onmessage = function (event) {
+    const data = JSON.parse(event.data);
+    switch (data.code) {
+        case 2:
+            newTrace(data.message)
+            break;
+        case 20:
+            let json = JSON.parse(data.message)
+            if (json.method !== localStorage.getItem("method")) anotherMethod(json.method.split("::").slice(1).join("::"), false)
+            showTrace(json.nodesId)
+            break;
+        case 3:
+            localStorage.setItem("file", data.message);
+            req.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file"), true);
+            req.send(null);
+            methods.open("GET", `http://${host}/` + localStorage.getItem("file") + "/" + localStorage.getItem("file") + "-all", true);
+            methods.send(null);
+            break;
+        case 4:
+            let traces = JSON.parse(data.message)
+            traces.forEach(newTrace)
+            break;
+        default:
+            break;
+    }
+};
+
+function showTrace(trace) {
+    trace.forEach(id => {
+        if (id) {
+            let node = graph.findById(id)
+            if (node) {
+                graph.updateItem(node, {
+                    style: {
+                        stroke: '#17ff00',
+                        fill: '#acfca4',
+                    }
+                })
+            }
+        }
+    });
+    let node = graph.find('node', (n) => {
+        let node = n.getModel()
+        return n.getInEdges().length === 0 && node.name.replaceAll("/", ".") === localStorage.getItem("method").split("::").slice(1).join("::")
+    })
+    graph.updateItem(node, {
+        style: {
+            stroke: '#17ff00',
+            fill: '#acfca4',
+        }
+    })
+}
+
+document.querySelector('#methods').onchange = function () {
+    anotherMethod(document.getElementsByClassName('current')[0].innerText);
+}
+
+function anotherMethod(method, async = true) {
+    const jar = localStorage.getItem("file")
+    graph.clear()
+    document.querySelector('.spinner').style.display = "block";
+
+    req.open("GET", `http://${host}/` + jar + "/" + method, async);
+    closeNav();
+    req.send(null);
+}
+
 function graphIt(json) {
     document.querySelector('.spinner').style.display = "none";
     const data = {'nodes': json.nodes, 'edges': json.links}
     localStorage.setItem("method", json.name)
 
     graph.changeData(data);
-    /*if (typeof window !== 'undefined')
-        window.onresize = () => {
-            if (!graph || graph.get('destroyed')) return;
-            if (!container || !container.scrollWidth || !container.scrollHeight) return;
-            graph.changeSize(container.scrollWidth, container.scrollHeight);
-        };*/
 }
 
-function expand() {
+document.querySelector('.item').onclick = function () {
     document.getElementById("context-menu").classList.remove("active");
     const jar = localStorage.getItem("file")
     const method = localStorage.getItem("method")
@@ -376,33 +368,34 @@ function parseJson(k, value) {
     return JSON.parse(value);
 }
 
-function newTrace(name) {
+function newTrace(name, toast = true) {
     let trace = document.createElement('option');
     trace.innerHTML = name.replaceAll("<", "").replaceAll(">", "") + ` - ${traces.length}`;
     document.getElementById("traces").appendChild(trace)
     tracesSelect.update()
     traces.push({index: traces.length, name: name});
 
-    iziToast.success({
-        id: 'success',
-        title: 'New trace',
-        message: name.replaceAll("<", "").replaceAll(">", ""),
-        iconUrl: 'info.png',
-        timeout: false,
-        progressBar: false,
-        buttons: [
-            ['<button><b>Show</b></button>', function (instance, toast) {
+    if (toast)
+        iziToast.success({
+            id: 'success',
+            title: 'New trace',
+            message: name.replaceAll("<", "").replaceAll(">", ""),
+            iconUrl: 'info.png',
+            timeout: false,
+            progressBar: false,
+            buttons: [
+                ['<button><b>Show</b></button>', function (instance, toast) {
 
-                instance.hide({transitionOut: 'fadeOutDown'}, toast, 'button');
-                let index = traces.find(trace => {
-                    return trace.name === name
-                }).index
-                socket.send(newResponse(20, index.toString()));
-            }, true]
-        ],
-        transitionIn: 'fadeInUp',
-        transitionOut: 'fadeOutDown'
-    });
+                    instance.hide({transitionOut: 'fadeOutDown'}, toast, 'button');
+                    let index = traces.find(trace => {
+                        return trace.name === name
+                    }).index
+                    socket.send(newResponse(20, index.toString()));
+                }, true]
+            ],
+            transitionIn: 'fadeInUp',
+            transitionOut: 'fadeOutDown'
+        });
 }
 
 function trace(trace) {

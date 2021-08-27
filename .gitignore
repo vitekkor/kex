@@ -12,3 +12,8 @@ tests/*
 **/*.json
 **/kex-output*/*
 **/temp*/*
+/kex-ui/src/main/resources/index.js
+/kex-ui/src/main/resources/index.js.LICENSE.txt
+/kex-ui/src/main/resources/style.css
+/kex-ui/node/
+/kex-ui/node_modules/

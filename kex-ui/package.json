@@ -1,0 +1,23 @@
+{
+  "name": "kex-ui",
+  "version": "1.0.0",
+  "description": "UI for kex - White-box fuzzer for Java bytecode",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 0",
+    "build": "webpack"
+  },
+  "author": "vitekkor",
+  "license": "ISC",
+  "dependencies": {
+    "webpack": "^5.51.1",
+    "webpack-cli": "^4.8.0",
+    "style-loader": "^3.2.1",
+    "css-loader": "^6.2.0",
+    "jquery": "^3.6.0",
+    "izitoast": "^1.4.0",
+    "@antv/g6": "^4.3.6",
+    "nice-select2": "^1.0.0",
+    "mini-css-extract-plugin": "^2.2.0"
+  }
+}

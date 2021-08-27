@@ -15,6 +15,7 @@
         <maven.compiler.source>${jvm.version}</maven.compiler.source>
         <maven.compiler.target>${jvm.version}</maven.compiler.target>
         <ktor.version>1.6.2</ktor.version>
+        <maven.fronted.plugin.version>1.12.0</maven.fronted.plugin.version>
     </properties>
 
     <repositories>
@@ -71,8 +72,55 @@
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <excludes>
+                    <exclude>visual.js</exclude>
+                    <exclude>graph.css</exclude>
+                    <exclude>*.LICENSE.txt</exclude>
+                </excludes>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
 
         <plugins>
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>${maven.fronted.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>install node and npm</id>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                    </execution>
+
+                    <execution>
+                        <id>npm-install</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <arguments>install</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>webpack-build</id>
+                        <goals>
+                            <goal>webpack</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <nodeVersion>v14.15.0</nodeVersion> <!-->v14.17.5<!-->
+                    <npmVersion>6.14.8</npmVersion><!-->7.21.1<!-->
+                </configuration>
+            </plugin>
+
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <groupId>org.jetbrains.kotlin</groupId>
