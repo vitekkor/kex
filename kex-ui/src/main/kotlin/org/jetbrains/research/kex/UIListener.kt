@@ -8,7 +8,6 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import io.ktor.util.collections.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.collect
@@ -122,7 +121,8 @@ class UIListener(
                         }
                         else -> {
                             kfgGraphs[call.parameters["jar"]]!!.parallelStream().filter {
-                                it.name.split("::").drop(1).joinToString("::") == call.parameters["method"]
+                                it.name.split("::").drop(1).joinToString("::")
+                                    .replace(Regex("""[<>]"""), "") == call.parameters["method"]
                             }.findFirst().get()
                                 .let { call.respondText(Response(0, it.toJson()).toJson()) }
                         }
@@ -130,6 +130,7 @@ class UIListener(
                 }
 
                 get("/{jar}/{method}/{subMethod}") {
+                    val t = traces.getOrNull(1)
                     val graphs = kfgGraphs[call.parameters["jar"]]!!
                     val sM = call.parameters["subMethod"]!!.replace("%5C", "/")
                     val split = sM.split("static ").last().split(".").drop(1).joinToString()
@@ -159,13 +160,12 @@ class UIListener(
         jars: List<Container>,
         context: ExecutionContext
     ): MutableMap<String, MutableList<KFGGraph>> = runBlocking {
-        println("Creating CGF for ${containers.map { it.path }}")
         log.info("Creating CGF for ${containers.map { it.path }}")
         val kfgGraphs = mutableMapOf<String, MutableList<KFGGraph>>()
         for (jar in jars) {
             val cm = context.cm
             cm.initialize(jar)
-            val graphs = ConcurrentList<KFGGraph>()
+            val graphs = ConcurrentArrayList<KFGGraph>()
             cm.concreteClasses.asFlow().collect { klass ->
                 klass.allMethods.asFlow().collect { method ->
                     if (!method.isNative && method.isNotEmpty())
@@ -175,7 +175,6 @@ class UIListener(
             kfgGraphs[jar.path.name] = graphs
         }
         log.info("Created")
-        println("Created")
         return@runBlocking kfgGraphs
     }
 

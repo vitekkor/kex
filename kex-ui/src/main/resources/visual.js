@@ -327,7 +327,7 @@ document.querySelector('.item').onclick = function () {
                 }
             })
             let ends = response.message.nodes.filter(node => {
-                return node.name.includes("return")
+                return node.name.includes("return") // || node.name.includes("throw") ??
             })
             ends.forEach(end => {
                 if (end) {
